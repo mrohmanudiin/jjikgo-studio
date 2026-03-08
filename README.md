@@ -1,16 +1,54 @@
-# React + Vite
+# JJIKGO Photobooth Monorepo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is structured as an npm monorepo to manage multiple applications (frontend clients) and a shared backend from a single codebase.
 
-Currently, two official plugins are available:
+## Project Structure
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```text
+JJIKGO_PHOTOBOOTH
+├── apps
+│   ├── admin-dashboard    # Vite + React Admin interface
+│   ├── cashier-app        # Vite + React Cashier interface (main point of sale)
+│   └── staff-app          # Vite + React Staff interface
+├── backend                # Node.js + Express + Prisma backend and Socket.IO
+│   ├── prisma
+│   ├── scripts
+│   └── src
+│       ├── controllers
+│       ├── middleware
+│       ├── routes
+│       ├── services
+│       ├── socket
+│       └── app.js
+└── package.json           # Root package defining workspaces
+```
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js (v18 or higher recommended)
+- Database (defined in backend/prisma/.env)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Installation
+
+Install dependencies for all workspaces from the root directory:
+
+```bash
+npm install
+```
+
+### Running Applications
+
+You can run individual applications using root npm scripts:
+
+- **Cashier App:** `npm run dev:cashier`
+- **Staff App:** `npm run dev:staff`
+- **Admin Dashboard:** `npm run dev:admin`
+- **Backend:** `npm run dev:backend`
+
+### Building for Production
+
+- **Cashier App:** `npm run build:cashier`
+- **Staff App:** `npm run build:staff`
+- **Admin Dashboard:** `npm run build:admin`
