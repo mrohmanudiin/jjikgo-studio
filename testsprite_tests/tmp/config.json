@@ -1,0 +1,20 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "loginUser": "admin",
+  "loginPassword": "admin123",
+  "executionArgs": {
+    "projectName": "JJIKGO_PHOTOBOOTH",
+    "projectPath": "d:\\JJIKGO_PHOTOBOOTH",
+    "testIds": [],
+    "additionalInstruction": "The Cashier App is running on http://localhost:5173. The Staff App is running on http://localhost:5174. The Admin Dashboard is on http://localhost:5175. Navigate to the correct dev server URL for each test instead of using localhost:3000.",
+    "serverMode": "development",
+    "envs": {
+      "API_KEY": "sk-user-mxv-Fe5MyOE1Rt18PIpVAETdNZ21HmzYA2_UsFa4xwukOXhqkRIFBpx9fre_iDN6Kud0OuxDygaAITW7V8h9q6D76hGww7PHWZX725E2o58mB5BOl8XXaU0W8fg05vfUJ4g"
+    }
+  },
+  "serverPort": 50155,
+  "proxy": "http://7ce39f67-2d47-4856-bea7-332d4e26bd65:7OcNzIdCT3lgOEFXLhuJijexupHmQay1@tun.testsprite.com:8080"
+}

@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { Play, DollarSign, Wallet } from 'lucide-react';
+import { Play, X } from 'lucide-react';
 
 export default function ShiftOverlay() {
     const { currentShift, startShift, user, branch } = useStore();
     const [startingCash, setStartingCash] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [hidden, setHidden] = useState(false);
 
-    if (currentShift) return null;
+    if (currentShift || hidden) return null;
 
     const handleStart = async (e) => {
         e.preventDefault();
@@ -42,8 +43,23 @@ export default function ShiftOverlay() {
                 maxWidth: 400,
                 padding: '40px 32px',
                 textAlign: 'center',
-                boxShadow: '0 32px 64px rgba(0,0,0,0.5)'
+                boxShadow: '0 32px 64px rgba(0,0,0,0.5)',
+                position: 'relative'
             }}>
+                <button
+                    onClick={() => setHidden(true)}
+                    style={{
+                        position: 'absolute', top: 16, right: 16,
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: '#8E8E93', padding: 8, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F5F5F5'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                >
+                    <X size={20} />
+                </button>
+
                 <div style={{
                     width: 64, height: 64, borderRadius: 20,
                     background: '#111',
@@ -57,8 +73,8 @@ export default function ShiftOverlay() {
                     Start Your Shift
                 </h2>
                 <p style={{ fontSize: 14, color: '#8E8E93', marginBottom: 32 }}>
-                    Welcome, <strong>{user?.full_name}</strong>!<br />
-                    Please record the starting cash in your register at <strong>{branch?.name}</strong>.
+                    Welcome, <strong>{user?.full_name || user?.username}</strong>!<br />
+                    Please record the starting cash in your register at <strong>{branch?.name || 'your branch'}</strong>.
                 </p>
 
                 <form onSubmit={handleStart}>
@@ -84,7 +100,7 @@ export default function ShiftOverlay() {
                     </div>
 
                     {error && (
-                        <div style={{ background: '#FFF1F0', border: '1px solid #FFCCC7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#FF3B30', marginBottom: 20 }}>
+                        <div style={{ background: '#FFF1F0', border: '1px solid #FFCCC7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#FF3B30', marginBottom: 20, textAlign: 'left' }}>
                             {error}
                         </div>
                     )}
@@ -96,6 +112,16 @@ export default function ShiftOverlay() {
                         style={{ width: '100%', padding: '16px', borderRadius: 14, fontSize: 16 }}
                     >
                         {loading ? 'Starting...' : 'Open Shift'}
+                    </button>
+                    
+                    <button
+                        type="button"
+                        onClick={() => setHidden(true)}
+                        className="btn btn-secondary"
+                        disabled={loading}
+                        style={{ width: '100%', padding: '16px', borderRadius: 14, fontSize: 16, marginTop: 12 }}
+                    >
+                        Cancel
                     </button>
                 </form>
 

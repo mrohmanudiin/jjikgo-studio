@@ -11,7 +11,6 @@ const shiftStatusEnum = pgEnum('shift_status', ['open', 'closed']);
 const boothStatusEnum = pgEnum('booth_status', ['available', 'busy', 'maintenance']);
 
 // ── Branches ───────────────────────────────────────────
-// Table name matches existing Prisma "Branch" table
 const branches = pgTable('Branch', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
@@ -229,7 +228,7 @@ const settingsRelations = relations(settings, ({ one }) => ({
 }));
 
 module.exports = {
-  // enums (for future migration, not used as column types for now for Prisma compat)
+  // enums
   roleEnum, queueStatusEnum, shiftStatusEnum, boothStatusEnum,
   // tables
   branches, users, authSessions, themes, packages, addons, cafeSnacks, promos,

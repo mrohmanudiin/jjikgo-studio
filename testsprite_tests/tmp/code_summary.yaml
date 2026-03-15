@@ -1,0 +1,40 @@
+version: "2"
+type: backend
+tech_stack:
+  - javascript
+  - express
+  - prisma
+  - socket.io
+routes:
+  - path: /api/auth/login
+    file: backend/src/routes/auth.js
+    auth_required: false
+    description: User Login
+  - path: /api/auth/me
+    file: backend/src/routes/auth.js
+    auth_required: true
+    description: Current User Info
+  - path: /api/branches
+    file: backend/src/routes/branches.js
+    auth_required: true
+    description: Branches
+features:
+  - name: User Authentication
+    description: Login, Register, Get Me
+    files:
+      - backend/src/controllers/authController.js
+    entry_route: /api/auth/login
+    api_calls:
+      - method: POST
+        endpoint: /api/auth/login
+    auth_required: false
+  - name: Manage Branches
+    description: CRUD Branches
+    files:
+      - backend/src/controllers/branchController.js
+    entry_route: /api/branches
+    api_calls:
+      - method: POST
+        endpoint: /api/branches
+    auth_required: true
+known_limitations: []

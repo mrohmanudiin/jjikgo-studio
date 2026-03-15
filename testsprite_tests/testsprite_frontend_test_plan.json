@@ -1,0 +1,634 @@
+[
+  {
+    "id": "TC001",
+    "title": "Create a complete transaction and pay successfully (happy path)",
+    "description": "Verifies a cashier can complete a transaction with all options and see a payment confirmation with a unique invoice number.",
+    "category": "Cashier POS - Transaction Creation & Payment",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Cashier App home page (the main Cashier POS entry screen)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Start new transaction\"."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Test Customer\" into the customer name field."
+      },
+      {
+        "type": "action",
+        "description": "Select a theme from the theme selector."
+      },
+      {
+        "type": "action",
+        "description": "Select a package from the package selector."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pay\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify a payment confirmation message is visible."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invoice\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Add addons and cafe snacks before payment",
+    "description": "Verifies the cashier can add optional addons and cafe snacks and proceed to payment.",
+    "category": "Cashier POS - Transaction Creation & Payment",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Cashier App home page (the main Cashier POS entry screen)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Start new transaction\"."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Addons Snacks Customer\" into the customer name field."
+      },
+      {
+        "type": "action",
+        "description": "Select a theme from the theme selector."
+      },
+      {
+        "type": "action",
+        "description": "Select a package from the package selector."
+      },
+      {
+        "type": "action",
+        "description": "Click to add one available addon item to the transaction."
+      },
+      {
+        "type": "action",
+        "description": "Click to add one available cafe snack item to the transaction."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pay\"."
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Apply a valid promo code and see discount reflected",
+    "description": "Verifies applying a promo code updates the order summary before payment.",
+    "category": "Cashier POS - Transaction Creation & Payment",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Cashier App home page (the main Cashier POS entry screen)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Start new transaction\"."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Promo Customer\" into the customer name field."
+      },
+      {
+        "type": "action",
+        "description": "Select a theme from the theme selector."
+      },
+      {
+        "type": "action",
+        "description": "Select a package from the package selector."
+      },
+      {
+        "type": "action",
+        "description": "Type \"PROMO10\" into the promo code field."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Apply promo\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Discount\" is visible in the order summary."
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Invalid promo code shows an error and does not apply discount",
+    "description": "Verifies an invalid promo code is rejected with a visible error message.",
+    "category": "Cashier POS - Transaction Creation & Payment",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Cashier App home page (the main Cashier POS entry screen)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Start new transaction\"."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Invalid Promo Customer\" into the customer name field."
+      },
+      {
+        "type": "action",
+        "description": "Select a theme from the theme selector."
+      },
+      {
+        "type": "action",
+        "description": "Select a package from the package selector."
+      },
+      {
+        "type": "action",
+        "description": "Type \"NOTAREALPROMO\" into the promo code field."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Apply promo\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid\" is visible near the promo code area."
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Required-field validation blocks payment until corrected",
+    "description": "Verifies clicking Pay with missing required fields shows validation errors and payment cannot proceed until fields are completed.",
+    "category": "Cashier POS - Transaction Creation & Payment",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Cashier App home page (the main Cashier POS entry screen)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Start new transaction\"."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pay\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"required\" is visible on the page."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Validation Customer\" into the customer name field."
+      },
+      {
+        "type": "action",
+        "description": "Select a theme from the theme selector."
+      },
+      {
+        "type": "action",
+        "description": "Select a package from the package selector."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pay\"."
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Choose a payment method and confirm payment",
+    "description": "Verifies the payment method selection step is reachable and confirming completes the transaction.",
+    "category": "Cashier POS - Transaction Creation & Payment",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Cashier App home page (the main Cashier POS entry screen)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Start new transaction\"."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Payment Method Customer\" into the customer name field."
+      },
+      {
+        "type": "action",
+        "description": "Select a theme from the theme selector."
+      },
+      {
+        "type": "action",
+        "description": "Select a package from the package selector."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pay\"."
+      },
+      {
+        "type": "action",
+        "description": "Select a payment method from the payment method list."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Confirm payment\"."
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Card payment failure shows error and allows retry while keeping draft",
+    "description": "Verifies a failed card payment shows a failure notification and provides a retry option without losing the draft transaction.",
+    "category": "Cashier POS - Transaction Creation & Payment",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Cashier App home page (the main Cashier POS entry screen)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Start new transaction\"."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Card Failure Customer\" into the customer name field."
+      },
+      {
+        "type": "action",
+        "description": "Select a theme from the theme selector."
+      },
+      {
+        "type": "action",
+        "description": "Select a package from the package selector."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pay\"."
+      },
+      {
+        "type": "action",
+        "description": "Select \"Card\" as the payment method."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Payment failed\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "After successful payment, invoice number is displayed and transaction is finalized",
+    "description": "Verifies the final state after payment includes a visible unique invoice number and indicates completion.",
+    "category": "Cashier POS - Transaction Creation & Payment",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the Cashier App home page (the main Cashier POS entry screen)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Start new transaction\"."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Invoice Check Customer\" into the customer name field."
+      },
+      {
+        "type": "action",
+        "description": "Select a theme from the theme selector."
+      },
+      {
+        "type": "action",
+        "description": "Select a package from the package selector."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Pay\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invoice\" is visible."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Paid\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Connect to a branch room and confirm queue page loads",
+    "description": "Verifies staff can access branch context and the queue UI loads with expected sections.",
+    "category": "Queue System (Staff)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/branches"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Branches\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on a branch in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Connected\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Queue\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Theme selector\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Invalid or expired QR returns Not Found/Invalid QR error",
+    "description": "Verifies the system displays an error when staff scans/enters an invalid or expired QR code.",
+    "category": "Queue System (Staff)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/branches"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search by QR\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"QR code input\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"INVALID-QR-$$$$\" into \"QR code input\""
+      },
+      {
+        "type": "action",
+        "description": "Press Enter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid QR\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Contact staff\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Empty QR submission shows validation message",
+    "description": "Verifies the QR search prevents empty submission and displays a user-facing validation message.",
+    "category": "Queue System (Staff)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/branches"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search by QR\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"QR code input\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"QR code is required\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Open a shift with starting cash and verify active status",
+    "description": "Verifies staff can open a shift by entering starting cash and the shift becomes active.",
+    "category": "Shift Handling & Expense Tracking (Staff)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/auth/login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"User Login\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Shift\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Open Shift\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Starting cash\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Confirm opening shift with a valid starting cash amount",
+    "description": "Verifies confirming the open shift action activates the shift after entering a valid starting cash value.",
+    "category": "Shift Handling & Expense Tracking (Staff)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/auth/login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"User Login\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Open Shift\" button"
+      },
+      {
+        "type": "action",
+        "description": "Type \"100\" into the \"Starting cash\" field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Confirm\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Prevent opening a shift when starting cash is missing",
+    "description": "Verifies validation prevents opening a shift without entering a starting cash amount.",
+    "category": "Shift Handling & Expense Tracking (Staff)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/auth/login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"User Login\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Open Shift\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Confirm\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Starting cash\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Record an expense during an active shift and verify it appears in totals",
+    "description": "Verifies staff can add an expense with amount and description and see it reflected in the shift’s expense list/total.",
+    "category": "Shift Handling & Expense Tracking (Staff)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/auth/login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"User Login\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Open Shift\" button"
+      },
+      {
+        "type": "action",
+        "description": "Type \"100\" into the \"Starting cash\" field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Confirm\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Validate expense entry requires amount and description",
+    "description": "Verifies the expense form enforces required fields before saving an expense.",
+    "category": "Shift Handling & Expense Tracking (Staff)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /api/auth/login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"User Login\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add Expense\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Save\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Description\" is visible"
+      }
+    ]
+  }
+]
