@@ -25,7 +25,8 @@ const io = new Server(server, {
 });
 
 // ── Middleware ──────────────────────────────────────────
-app.use(cors(corsOptions)); // handles preflight OPTIONS automatically for all routes
+app.use(cors(corsOptions)); // apply CORS headers to all responses
+app.options(/.*/, cors(corsOptions)); // handle preflight using regex (Express 5 compatible)
 app.use(express.json());
 app.use(cookieParser());
 
