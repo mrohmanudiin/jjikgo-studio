@@ -16,7 +16,7 @@ import { Settings } from './pages/Settings';
 import { Branches } from './pages/Branches';
 import { Login } from './pages/Login';
 import { BranchProvider } from './contexts/BranchContext';
-import api from '../utils/api';
+import api from './utils/api';
 import { useState, useEffect } from 'react';
 
 function App() {
