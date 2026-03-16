@@ -11,6 +11,7 @@ if (!API_URL && import.meta.env.PROD) {
 }
 
 API_URL = API_URL.replace(/\/$/, '') || 'http://localhost:3000';
+console.log('📡 [Jjikgo] Connecting to API:', API_URL);
 
 export const api = axios.create({
     baseURL: `${API_URL}/api`,

@@ -85,7 +85,11 @@ app.use(errorHandler);
 
 // ── Start ──────────────────────────────────────────────
 server.listen(env.PORT, () => {
-    console.log(`🚀 Server is running on port ${env.PORT}`);
-    console.log(`📡 Socket.io ready`);
-    console.log(`🔗 Allowed origins: ${env.FRONTEND_URLS.join(', ')}`);
+    console.log(`\n---------------------------------------------------`);
+    console.log(`🚀 Jjikgo API is running on port ${env.PORT}`);
+    console.log(`🌐 Environment: ${env.NODE_ENV}`);
+    console.log(`🔗 Backend URL: https://backend-production-d3fc.up.railway.app`);
+    console.log(`📡 Socket.io: READY`);
+    console.log(`📜 Allowed Origins: ${env.FRONTEND_URLS.join(', ')}`);
+    console.log(`---------------------------------------------------\n`);
 });

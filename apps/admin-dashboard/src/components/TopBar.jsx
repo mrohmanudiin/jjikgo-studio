@@ -4,7 +4,6 @@ import { useTheme } from './ThemeProvider';
 import { Button } from './ui/Button';
 import { useBranch } from '../contexts/BranchContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export function TopBar({ onToggleSidebar }) {
     const { theme, setTheme } = useTheme();
