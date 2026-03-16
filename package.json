@@ -1,6 +1,9 @@
 {
     "name": "jjikgo-photobooth-workspace",
     "private": true,
+    "engines": {
+        "node": ">=18.0.0"
+    },
     "workspaces": [
         "apps/*",
         "backend"

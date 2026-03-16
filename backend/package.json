@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "description": "Jjikgo Photobooth Backend API",
   "main": "src/app.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "nodemon src/app.js",
     "start": "node src/app.js",
