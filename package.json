@@ -16,7 +16,7 @@
         "build:cashier": "npm run build --workspace=apps/cashier-app",
         "build:staff": "npm run build --workspace=apps/staff-app",
         "build:admin": "npm run build --workspace=apps/admin-dashboard",
-        "build:backend": "npm run build --workspace=backend",
+        "build:backend": "cd backend && npm install && npm run db:setup",
         "start:cashier": "serve -s apps/cashier-app/dist -p ${PORT:-3000}",
         "start:staff": "serve -s apps/staff-app/dist -p ${PORT:-3000}",
         "start:admin": "serve -s apps/admin-dashboard/dist -p ${PORT:-3000}",

@@ -14,7 +14,8 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "node src/db/seed.js",
-    "db:setup": "npm run db:push && npm run db:seed",
+    "db:ensure-admin": "node src/db/ensure-admin.js",
+    "db:setup": "npm run db:push && npm run db:ensure-admin",
     "prestart": "echo 'Starting Jjikgo API...'"
   },
   "keywords": [],
