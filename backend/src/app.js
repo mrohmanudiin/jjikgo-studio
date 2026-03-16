@@ -90,10 +90,9 @@ process.on('unhandledRejection', (reason) => {
 
 async function startServer() {
     try {
-        const HOST = '0.0.0.0'; // Required for Railway
-        server.listen(env.PORT, HOST, () => {
+        server.listen(env.PORT, () => {
             console.log(`\n---------------------------------------------------`);
-            console.log(`🚀 Jjikgo API is running on ${HOST}:${env.PORT}`);
+            console.log(`🚀 Jjikgo API is running on port ${env.PORT}`);
             console.log(`🌐 Environment: ${env.NODE_ENV}`);
             console.log(`📡 Socket.io: READY`);
             console.log(`📡 Database: ${env.DATABASE_URL ? 'URL configured' : '⚠️  MISSING'}`);
