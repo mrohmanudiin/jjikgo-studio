@@ -68,24 +68,22 @@ app.get('/', (req, res) => {
 app.use(errorHandler);
 
 // ── Start ──────────────────────────────────────────────
-async function startServer() {
-    // Try to push the database schema before starting
-    try {
-        const { execSync } = require('child_process');
-        console.log('📦 Pushing database schema...');
-        execSync('npx drizzle-kit push --force', { stdio: 'inherit' });
-        console.log('✅ Database schema is up to date.');
-    } catch (err) {
-        console.warn('⚠️  db:push failed (schema may already be up to date):', err.message);
-    }
+console.log('🏁 Starting Jjikgo API boot sequence...');
 
-    server.listen(env.PORT, () => {
-        console.log(`\n---------------------------------------------------`);
-        console.log(`🚀 Jjikgo API is running on port ${env.PORT}`);
-        console.log(`🌐 Environment: ${env.NODE_ENV}`);
-        console.log(`📡 Socket.io: READY`);
-        console.log(`---------------------------------------------------\n`);
-    });
+async function startServer() {
+    try {
+        server.listen(env.PORT, () => {
+            console.log(`\n---------------------------------------------------`);
+            console.log(`🚀 Jjikgo API is running on port ${env.PORT}`);
+            console.log(`🌐 Environment: ${env.NODE_ENV}`);
+            console.log(`📡 Socket.io: READY`);
+            console.log(`📡 Database: URL configured`);
+            console.log(`---------------------------------------------------\n`);
+        });
+    } catch (err) {
+        console.error('❌ Failed to start server:', err);
+        process.exit(1);
+    }
 }
 
 startServer();
