@@ -442,7 +442,8 @@ export const useStore = create(
             // Derived getters
             getTodayTransactions: () => {
                 const d = today();
-                return (get().transactions || []).filter((t) => t.created_at?.startsWith(d));
+                const txs = get().transactions;
+                return (Array.isArray(txs) ? txs : []).filter((t) => t.created_at?.startsWith(d));
             },
             getTodaySales: () => {
                 const txs = get().getTodayTransactions();
@@ -453,11 +454,13 @@ export const useStore = create(
                     return s + (t.total || 0);
                 }, 0);
             },
-            getActiveQueueCount: () =>
-                (get().transactions || []).filter((t) =>
+            getActiveQueueCount: () => {
+                const txs = get().transactions;
+                return (Array.isArray(txs) ? txs : []).filter((t) =>
                     t.order_status === 'waiting' ||
                     t.order_status === 'called'
-                ).length,
+                ).length;
+            },
             getMostUsedPackage: () => {
                 const txs = get().getTodayTransactions();
                 if (!txs.length) return '—';
@@ -466,7 +469,8 @@ export const useStore = create(
                 return Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
             },
             getThemeQueueWaitTime: (themeId) => {
-                const count = (get().transactions || []).filter(t =>
+                const txs = get().transactions;
+                const count = (Array.isArray(txs) ? txs : []).filter(t =>
                     t.theme_id === themeId && t.order_status !== 'DONE' && t.order_status !== 'done'
                 ).length;
                 if (count === 0) return 0;
@@ -474,10 +478,12 @@ export const useStore = create(
             },
 
             // Get all print_requested queues for cashier alert panel
-            getPrintRequests: () =>
-                (get().transactions || []).filter((t) =>
+            getPrintRequests: () => {
+                const txs = get().transactions;
+                return (Array.isArray(txs) ? txs : []).filter((t) =>
                     t.order_status === 'print_requested'
-                ),
+                );
+            },
 
             // Confirm print — advance to PRINTING via backend
             confirmPrint: async (id) => {
@@ -506,6 +512,8 @@ export const useStore = create(
                 ...persistedState,
                 // Ensure builder is ALWAYS derived from fresh code, not old localStorage
                 builder: currentState.builder,
+                // Ensure transactions is explicitly set to not persist/load buggy state
+                transactions: currentState.transactions,
             }),
         }
     )

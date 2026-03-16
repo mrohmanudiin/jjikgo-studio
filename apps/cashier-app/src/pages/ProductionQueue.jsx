@@ -33,14 +33,14 @@ export default function ProductionQueue() {
         setConfirmingPrint(null);
     };
 
-    const filtered = (transactions || []).filter((t) => {
+    const txList = Array.isArray(transactions) ? transactions : [];
+    const filtered = txList.filter((t) => {
         const matchesStatus = statusFilter === 'ALL' || t.order_status === statusFilter;
         const matchesTheme = themeFilter === 'ALL' || t.theme_id === themeFilter;
         return matchesStatus && matchesTheme;
     });
 
     const counts = {};
-    const txList = transactions || [];
     ORDER_STATUSES.forEach((s) => {
         counts[s] = txList.filter((t) => t.order_status === s).length;
     });
