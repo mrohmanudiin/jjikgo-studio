@@ -1,7 +1,16 @@
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+let API_URL = import.meta.env.VITE_API_URL || '';
+
+if (!API_URL && import.meta.env.PROD) {
+  const currentHost = window.location.hostname;
+  if (currentHost.includes('railway') || currentHost.includes('vercel')) {
+    API_URL = 'https://jjikgo-photobooth-production.up.railway.app';
+  }
+}
+
+API_URL = API_URL.replace(/\/$/, '') || 'http://localhost:3000';
 
 export const api = axios.create({
     baseURL: `${API_URL}/api`,

@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, Users, Camera, DollarSign, Activity, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
 import { format, subDays } from 'date-fns';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function StatCard({ title, value, icon: Icon, trend, trendLabel, colorClass = 'text-primary', bgClass = 'bg-primary/10' }) {
   const positive = trend >= 0;
@@ -46,7 +44,7 @@ export function Dashboard() {
       params.append('date_from', from30);
       params.append('date_to', today);
 
-      const { data: txAll } = await axios.get(`${API_URL}/api/transactions?${params}`);
+      const { data: txAll } = await api.get(`/transactions?${params}`);
 
       // Compute stats
       const todayTx = txAll.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === today);

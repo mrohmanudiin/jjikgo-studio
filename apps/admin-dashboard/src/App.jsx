@@ -16,7 +16,7 @@ import { Settings } from './pages/Settings';
 import { Branches } from './pages/Branches';
 import { Login } from './pages/Login';
 import { BranchProvider } from './contexts/BranchContext';
-import axios from 'axios';
+import api from '../utils/api';
 import { useState, useEffect } from 'react';
 
 // Setup global axios defaults
@@ -29,25 +29,15 @@ function App() {
 
   useEffect(() => {
     // Intercept requests to inject the token
-    const requestInterceptor = axios.interceptors.request.use((config) => {
-      try {
-        const storeStr = localStorage.getItem('jjikgo-admin-store');
-        if (storeStr) {
-          const { user } = JSON.parse(storeStr);
-          if (user?.token) {
-            config.headers.Authorization = `Bearer ${user.token}`;
-          }
-        }
-      } catch (e) { }
+    const requestInterceptor = api.interceptors.request.use((config) => {
+      // Logic moved to utils/api.js, but keeping here for extra safety or local overrides if needed
       return config;
     });
 
-    // Intercept responses to handle 401
-    const responseInterceptor = axios.interceptors.response.use(
+    const responseInterceptor = api.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          localStorage.removeItem('jjikgo-admin-store');
           setIsAuthenticated(false);
         }
         return Promise.reject(error);
@@ -55,8 +45,8 @@ function App() {
     );
 
     return () => {
-      axios.interceptors.request.eject(requestInterceptor);
-      axios.interceptors.response.eject(responseInterceptor);
+      api.interceptors.request.eject(requestInterceptor);
+      api.interceptors.response.eject(responseInterceptor);
     };
   }, []);
 

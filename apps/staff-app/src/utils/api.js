@@ -1,7 +1,16 @@
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+let API_URL = import.meta.env.VITE_API_URL || '';
+
+if (!API_URL && import.meta.env.PROD) {
+  const currentHost = window.location.hostname;
+  if (currentHost.includes('railway') || currentHost.includes('vercel')) {
+    API_URL = 'https://jjikgo-photobooth-production.up.railway.app';
+  }
+}
+
+API_URL = API_URL.replace(/\/$/, '') || 'http://localhost:3000';
 
 export const api = axios.create({
     baseURL: `${API_URL}/api`,
@@ -9,19 +18,36 @@ export const api = axios.create({
     withCredentials: true,
 });
 
-// Interceptor to inject Token from Zustand store
+// Interceptor to inject Token from store
 api.interceptors.request.use((config) => {
     try {
         const storeStr = localStorage.getItem('jjikgo-staff-store');
         if (storeStr) {
-            const { state } = JSON.parse(storeStr);
-            if (state?.user?.token) {
-                config.headers.Authorization = `Bearer ${state.user.token}`;
-            }
+            // Staff app store might be different structure
+            try {
+                const data = JSON.parse(storeStr);
+                const token = data.token || data.state?.user?.token;
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+            } catch(e) {}
         }
     } catch (e) { }
     return config;
 });
+
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('jjikgo-staff-store');
+            if (window.location.pathname !== '/') {
+                 window.location.href = '/';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const socket = io(API_URL, {
     withCredentials: true,

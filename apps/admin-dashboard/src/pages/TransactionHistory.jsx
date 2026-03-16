@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Download, Filter, Loader2, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
 import { format, subDays, startOfWeek, startOfMonth } from 'date-fns';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const STATUS_COLORS = {
   waiting: 'bg-yellow-100 text-yellow-700',
@@ -88,7 +86,7 @@ export function TransactionHistory() {
       if (dateRange.from) params.append('date_from', dateRange.from);
       if (dateRange.to) params.append('date_to', dateRange.to);
 
-      const { data } = await axios.get(`${API_URL}/api/transactions?${params}`);
+      const { data } = await api.get(`/transactions?${params}`);
       setTransactions(data);
     } catch (err) {
       console.error(err);
@@ -119,7 +117,7 @@ export function TransactionHistory() {
   const handleDelete = async (tx) => {
     if (!confirm(`Delete transaction ${tx.invoice_number}?`)) return;
     try {
-      await axios.delete(`${API_URL}/api/transactions/${tx.id}`);
+      await api.delete(`/transactions/${tx.id}`);
       fetchTransactions();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to delete');

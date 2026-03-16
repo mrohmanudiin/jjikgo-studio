@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, MapPin, Users, Receipt, Plus, Pencil, Trash2, ToggleRight, X, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const EMPTY_FORM = { name: '', location: '' };
 
@@ -21,7 +19,7 @@ export function Branches() {
     await Promise.all(
       branchList.map(async (b) => {
         try {
-          const { data } = await axios.get(`${API_URL}/api/branches/${b.id}/stats`);
+          const { data } = await api.get(`/branches/${b.id}/stats`);
           results[b.id] = data;
         } catch { }
       })
@@ -55,9 +53,9 @@ export function Branches() {
     setError('');
     try {
       if (editBranch) {
-        await axios.put(`${API_URL}/api/branches/${editBranch.id}`, form);
+        await api.put(`/branches/${editBranch.id}`, form);
       } else {
-        await axios.post(`${API_URL}/api/branches`, form);
+        await api.post('/branches', form);
       }
       setIsModalOpen(false);
       refreshBranches();
@@ -70,7 +68,7 @@ export function Branches() {
 
   const handleToggle = async (branch) => {
     try {
-      await axios.put(`${API_URL}/api/branches/${branch.id}`, { active: !branch.active });
+      await api.put(`/branches/${branch.id}`, { active: !branch.active });
       refreshBranches();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to update branch');
@@ -80,7 +78,7 @@ export function Branches() {
   const handleDelete = async (branch) => {
     if (!confirm(`Delete branch "${branch.name}"? This cannot be undone. All associated data will be lost.`)) return;
     try {
-      await axios.delete(`${API_URL}/api/branches/${branch.id}`);
+      await api.delete(`/branches/${branch.id}`);
       refreshBranches();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to delete branch');

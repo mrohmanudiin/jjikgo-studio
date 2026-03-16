@@ -4,10 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { UserPlus, Search, Pencil, Trash2, Shield, Camera, Banknote, ToggleRight, X, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const ROLES = ['admin', 'cashier', 'staff'];
 
 const EMPTY_FORM = {
@@ -49,7 +47,7 @@ export function UserManagement() {
     setLoading(true);
     try {
       const params = selectedBranch ? `?branch_id=${selectedBranch.id}` : '';
-      const { data } = await axios.get(`${API_URL}/api/users${params}`);
+      const { data } = await api.get(`/users${params}`);
       setUsers(data);
     } catch (err) {
       console.error(err);
@@ -96,9 +94,9 @@ export function UserManagement() {
       if (!payload.password) delete payload.password;
 
       if (editUser) {
-        await axios.put(`${API_URL}/api/users/${editUser.id}`, payload);
+        await api.put(`/users/${editUser.id}`, payload);
       } else {
-        await axios.post(`${API_URL}/api/users`, payload);
+        await api.post('/users', payload);
       }
       setIsModalOpen(false);
       fetchUsers();
@@ -111,7 +109,7 @@ export function UserManagement() {
 
   const handleToggleActive = async (user) => {
     try {
-      await axios.put(`${API_URL}/api/users/${user.id}`, { active: !user.active });
+      await api.put(`/users/${user.id}`, { active: !user.active });
       fetchUsers();
     } catch (err) {
       console.error(err);
@@ -121,7 +119,7 @@ export function UserManagement() {
   const handleDelete = async (user) => {
     if (!confirm(`Delete user "${user.username}"? This cannot be undone.`)) return;
     try {
-      await axios.delete(`${API_URL}/api/users/${user.id}`);
+      await api.delete(`/users/${user.id}`);
       fetchUsers();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to delete user');

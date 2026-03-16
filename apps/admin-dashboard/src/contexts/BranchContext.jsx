@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const BranchContext = createContext(null);
 
 export function BranchProvider({ children }) {
@@ -15,7 +14,7 @@ export function BranchProvider({ children }) {
 
   const fetchBranches = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/api/branches`);
+      const { data } = await api.get('/branches');
       setBranches(data);
     } catch (err) {
       console.error('Failed to fetch branches', err);

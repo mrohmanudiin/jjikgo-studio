@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../utils/api';
 import { Camera, Lock } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -16,9 +14,7 @@ export function Login({ onLoginSuccess }) {
     setError(null);
 
     try {
-      const res = await axios.post(`${API_URL}/api/auth/login`, { username, password }, {
-        withCredentials: true // Set cookie
-      });
+      const res = await api.post('/auth/login', { username, password });
       const data = res.data;
       
       if (data.role !== 'admin') {
