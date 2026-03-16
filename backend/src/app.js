@@ -80,14 +80,23 @@ app.use(errorHandler);
 // ── Start ──────────────────────────────────────────────
 console.log('🏁 Starting Jjikgo API boot sequence...');
 
+// Handle uncaught errors to prevent silent crashes
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled Rejection:', reason);
+});
+
 async function startServer() {
     try {
-        server.listen(env.PORT, () => {
+        const HOST = '0.0.0.0'; // Required for Railway
+        server.listen(env.PORT, HOST, () => {
             console.log(`\n---------------------------------------------------`);
-            console.log(`🚀 Jjikgo API is running on port ${env.PORT}`);
+            console.log(`🚀 Jjikgo API is running on ${HOST}:${env.PORT}`);
             console.log(`🌐 Environment: ${env.NODE_ENV}`);
             console.log(`📡 Socket.io: READY`);
-            console.log(`📡 Database: URL configured`);
+            console.log(`📡 Database: ${env.DATABASE_URL ? 'URL configured' : '⚠️  MISSING'}`);
             console.log(`---------------------------------------------------\n`);
         });
     } catch (err) {

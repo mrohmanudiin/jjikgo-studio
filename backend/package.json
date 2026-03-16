@@ -29,7 +29,7 @@
     "dotenv": "^17.3.1",
     "drizzle-kit": "^0.31.0",
     "drizzle-orm": "^0.41.0",
-    "express": "^5.2.1",
+    "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
     "postgres": "^3.4.7",
     "socket.io": "^4.8.3"
