@@ -5,4 +5,4 @@ buildCommand = "npm run build:backend"
 [deploy]
 startCommand = "npm start"
 healthCheckPath = "/health"
-restartPolicyType = "on-failure"
+restartPolicyType = "ON_FAILURE"
