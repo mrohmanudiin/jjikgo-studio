@@ -11,10 +11,15 @@ const app = express();
 const server = http.createServer(app);
 // ── CORS: Allow all origins (required for Railway + Vercel cross-origin) ──
 const corsOptions = {
-    origin: true, // Mirror the request origin — allows all, works with credentials
+    origin: function (origin, callback) {
+        // Always allow — sets Access-Control-Allow-Origin to the exact requesting origin
+        callback(null, origin || true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
 };
 
 const io = new Server(server, {
@@ -25,8 +30,7 @@ const io = new Server(server, {
 });
 
 // ── Middleware ──────────────────────────────────────────
-app.use(cors(corsOptions)); // apply CORS headers to all responses
-app.options(/.*/, cors(corsOptions)); // handle preflight using regex (Express 5 compatible)
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
