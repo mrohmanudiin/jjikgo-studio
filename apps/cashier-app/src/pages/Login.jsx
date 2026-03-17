@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { Camera, Eye, EyeOff, ArrowRight } from 'lucide-react';
 
-const DEMO_CREDENTIALS = { username: 'admin', password: 'admin123' };
+const DEMO_CREDENTIALS = { username: 'admin', password: 'password123' };
 
 export default function Login() {
     const [username, setUsername] = useState('');
@@ -187,7 +187,7 @@ export default function Login() {
                 }}>
                     <strong style={{ color: '#636366' }}>Demo credentials:</strong><br />
                     Username: admin<br />
-                    Password: admin123
+                    Password: password123
                 </div>
             </div>
 
