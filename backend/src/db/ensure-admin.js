@@ -13,7 +13,8 @@ async function ensureData() {
   }
 
   const queryClient = postgres(dbUrl);
-  const db = drizzle(queryClient);
+  const schema = require('./schema');
+  const db = drizzle(queryClient, { schema });
 
   console.log('🔍 Checking for core data...');
   
