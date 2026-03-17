@@ -40,8 +40,14 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
+            // Ignore 401s from the login endpoint so the UI can show the error instead of reloading
+            if (error.config && error.config.url && error.config.url.includes('/auth/login')) {
+                return Promise.reject(error);
+            }
             localStorage.removeItem('jjikgo-store');
-            window.location.reload();
+            if (window.location.pathname !== '/') {
+                window.location.href = '/';
+            }
         }
         return Promise.reject(error);
     }
