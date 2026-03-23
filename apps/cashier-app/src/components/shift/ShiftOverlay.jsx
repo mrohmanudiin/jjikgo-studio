@@ -11,15 +11,19 @@ export default function ShiftOverlay() {
 
     if (currentShift || hidden) return null;
 
+    const noBranch = !branch?.id;
+
     const handleStart = async (e) => {
         e.preventDefault();
-        if (!startingCash) return setError('Please enter starting cash');
-        
+        if (noBranch) return;
+        if (!startingCash) return setError('Please enter the starting cash amount.');
+
         setError('');
         setLoading(true);
         const result = await startShift(parseFloat(startingCash));
         if (!result.success) {
-            setError(result.error);
+            // Show the real backend error message
+            setError(result.error || 'Failed to start shift. Please try again.');
         }
         setLoading(false);
     };
@@ -99,8 +103,20 @@ export default function ShiftOverlay() {
                         </div>
                     </div>
 
+                    {/* No Branch Warning */}
+                    {noBranch && (
+                        <div style={{
+                            background: '#FFF8EE', border: '1px solid #FFD580', borderRadius: 10,
+                            padding: '14px 16px', fontSize: 13, color: '#B45309',
+                            marginBottom: 20, textAlign: 'left', lineHeight: 1.5,
+                        }}>
+                            <strong>No branch assigned.</strong><br />
+                            Your account doesn&rsquo;t have a branch. Ask an admin to assign you to a branch, then log in again.
+                        </div>
+                    )}
+
                     {error && (
-                        <div style={{ background: '#FFF1F0', border: '1px solid #FFCCC7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#FF3B30', marginBottom: 20, textAlign: 'left' }}>
+                        <div style={{ background: '#FFF1F0', border: '1px solid #FFCCC7', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#FF3B30', marginBottom: 20, textAlign: 'left', lineHeight: 1.5 }}>
                             {error}
                         </div>
                     )}
@@ -108,8 +124,12 @@ export default function ShiftOverlay() {
                     <button
                         type="submit"
                         className="btn btn-primary"
-                        disabled={loading}
-                        style={{ width: '100%', padding: '16px', borderRadius: 14, fontSize: 16 }}
+                        disabled={loading || noBranch}
+                        style={{
+                            width: '100%', padding: '16px', borderRadius: 14, fontSize: 16,
+                            opacity: noBranch ? 0.4 : 1,
+                            cursor: noBranch ? 'not-allowed' : 'pointer',
+                        }}
                     >
                         {loading ? 'Starting...' : 'Open Shift'}
                     </button>

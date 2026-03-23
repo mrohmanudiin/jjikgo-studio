@@ -12,7 +12,21 @@ exports.startShift = async (req, res) => {
     const effectiveBranchId = parseInt(branch_id || req.user?.branchId);
     const effectiveUserId = parseInt(user_id || req.user?.id);
 
-    // Check for open shift
+    // ── Validate branch ────────────────────────────────────────
+    if (!effectiveBranchId || isNaN(effectiveBranchId)) {
+      return res.status(400).json({
+        error: 'No branch assigned to your account. Ask an admin to assign you to a branch before starting a shift.'
+      });
+    }
+
+    // ── Validate user ─────────────────────────────────────────
+    if (!effectiveUserId || isNaN(effectiveUserId)) {
+      return res.status(400).json({
+        error: 'User ID is required. Please log in again.'
+      });
+    }
+
+    // ── Check for existing open shift ──────────────────────────
     const openShift = await db.query.shifts.findFirst({
       where: and(
         eq(shifts.branchId, effectiveBranchId),
@@ -21,9 +35,19 @@ exports.startShift = async (req, res) => {
     });
 
     if (openShift) {
-      return res.status(400).json({ error: 'There is already an open shift for this branch.' });
+      // Return the existing shift instead of an error — idempotent behaviour
+      const result = await db.query.shifts.findFirst({
+        where: eq(shifts.id, openShift.id),
+        with: { user: { columns: { fullName: true, username: true } } },
+      });
+      return res.json({
+        ...result,
+        user: result.user ? { full_name: result.user.fullName, username: result.user.username } : null,
+        _alreadyOpen: true,
+      });
     }
 
+    // ── Insert new shift ─────────────────────────────────────────
     const [shift] = await db.insert(shifts).values({
       branchId: effectiveBranchId,
       userId: effectiveUserId,
@@ -46,7 +70,7 @@ exports.startShift = async (req, res) => {
     });
   } catch (error) {
     console.error('startShift error:', error);
-    res.status(500).json({ error: 'Failed to start shift' });
+    res.status(500).json({ error: 'Failed to start shift', detail: error.message });
   }
 };
 

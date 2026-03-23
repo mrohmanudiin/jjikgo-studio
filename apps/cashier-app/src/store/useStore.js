@@ -158,15 +158,16 @@ export const useStore = create(
                 try {
                     const { api } = await import('../utils/api');
                     const response = await api.post('/shifts/start', {
-                        branch_id: branch.id,
-                        user_id: user.id,
+                        branch_id: branch?.id,
+                        user_id: user?.id,
                         starting_cash: startingCash
                     });
                     set({ currentShift: response.data });
                     return { success: true };
                 } catch (err) {
                     console.error("Failed to start shift", err);
-                    return { success: false, error: err.response?.data?.error || 'Failed to start shift' };
+                    const msg = err.response?.data?.error || err.response?.data?.detail || 'Failed to start shift';
+                    return { success: false, error: msg };
                 }
             },
 
