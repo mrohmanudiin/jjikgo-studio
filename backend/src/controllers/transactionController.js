@@ -89,14 +89,40 @@ exports.getAllTransactions = async (req, res) => {
 exports.createTransaction = async (req, res) => {
   try {
     const { sessions: sessionsList, branch_id, shift_id, user_id } = req.body;
+
+    // ── Validate sessions ─────────────────────────────────────────
     if (!sessionsList || sessionsList.length === 0) {
       return res.status(400).json({ error: 'No sessions provided' });
     }
 
-    // Use the user's branch if not explicitly provided
+    // ── Validate branch ───────────────────────────────────────────
     const effectiveBranchId = parseInt(branch_id || req.user?.branchId);
     if (!effectiveBranchId) {
-      return res.status(400).json({ error: 'Branch ID is required' });
+      return res.status(400).json({ error: 'Branch ID is required. Make sure you are logged in with a valid account.' });
+    }
+
+    // ── Resolve shift ─────────────────────────────────────────────
+    let effectiveShiftId = null;
+    if (shift_id) {
+      // Caller provided a shift_id — verify it's real and open
+      const { shifts } = require('../db/schema');
+      const shift = await db.query.shifts.findFirst({
+        where: and(eq(shifts.id, parseInt(shift_id)), eq(shifts.status, 'open')),
+      });
+      if (!shift) {
+        return res.status(400).json({ error: 'The provided shift is not open or does not exist. Please start a new shift.' });
+      }
+      effectiveShiftId = shift.id;
+    } else {
+      // Auto-lookup: find the open shift for this branch
+      const { shifts } = require('../db/schema');
+      const openShift = await db.query.shifts.findFirst({
+        where: and(eq(shifts.branchId, effectiveBranchId), eq(shifts.status, 'open')),
+      });
+      if (openShift) {
+        effectiveShiftId = openShift.id;
+      }
+      // If still null, allow transaction without a shift (shift_id is nullable)
     }
 
     const createdSessions = [];
@@ -110,7 +136,7 @@ exports.createTransaction = async (req, res) => {
     const [transaction] = await db.insert(transactions).values({
       invoiceNumber,
       branchId: effectiveBranchId,
-      shiftId: shift_id ? parseInt(shift_id) : null,
+      shiftId: effectiveShiftId,
       userId: user_id ? parseInt(user_id) : (req.user?.id || null),
       customerName: mainSession.customer_name || 'Walk-in',
       customerEmail: mainSession.customer_email || '',
@@ -179,7 +205,7 @@ exports.createTransaction = async (req, res) => {
     res.status(201).json({ success: true, transaction, all_sessions: createdSessions });
   } catch (error) {
     console.error('createTransaction error:', error);
-    res.status(500).json({ error: 'Failed to create transaction' });
+    res.status(500).json({ error: 'Failed to create transaction', detail: error.message });
   }
 };
 

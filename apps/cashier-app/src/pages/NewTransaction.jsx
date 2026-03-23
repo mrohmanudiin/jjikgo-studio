@@ -59,6 +59,11 @@ export default function NewTransaction() {
     const invoiceCounter = useStore((s) => s.invoiceCounter);
     const themeCounters = useStore((s) => s.themeCounters);
 
+    // Auth / shift context — read explicitly so we can pass them to backend
+    const storeUser = useStore((s) => s.user);
+    const storeBranch = useStore((s) => s.branch);
+    const currentShift = useStore((s) => s.currentShift);
+
     const themesList = useStore((s) => s.themes);
     const packagesList = useStore((s) => s.packages);
     const addonsList = useStore((s) => s.addons);
@@ -68,6 +73,7 @@ export default function NewTransaction() {
     const [completedTx, setCompletedTx] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isNoteVisible, setIsNoteVisible] = useState(false);
+    const [txError, setTxError] = useState('');
 
     const { base, discount, total } = getBuilderCalc();
     const overCapacityThemes = builder.themes.filter(t => (builder.peopleCount || 1) > (t.max_capacity || 4));
@@ -75,27 +81,81 @@ export default function NewTransaction() {
 
     const hasItems = builder.themes.length > 0 || builder.packages.length > 0 || builder.addons.length > 0 || builder.cafeSnacks.length > 0;
     const hasName = builder.customerName && builder.customerName.trim() !== '';
-    const canProcess = hasItems && hasName && !!builder.paymentMethod && !isProcessing && !isOverCapacity;
+    const hasShift = !!currentShift;
+    const canProcess = hasItems && hasName && !!builder.paymentMethod && !isProcessing && !isOverCapacity && hasShift;
 
     const handleProcess = async () => {
+        setTxError('');
         setIsProcessing(true);
         try {
-            // 1. Generate local sessions payload
-            const rawSessions = processPayment();
+            // 1. Build the complete payload explicitly
+            //    Backend needs: sessions[], branch_id, shift_id, user_id
+            const { base: b, discount: d, total: t } = getBuilderCalc();
 
-            // 2. Send the entire cart payload to backend
-            const res = await apiCreateTransaction(rawSessions);
+            // Build one session per theme (or one cafe session)
+            const sessions = [];
+            const themeBase = builder.themes;
 
-            if (res.success) {
-                setCompletedTx({ ...res.all_sessions[0], all_sessions: res.all_sessions });
+            if (themeBase.length > 0) {
+                themeBase.forEach(theme => {
+                    for (let i = 0; i < theme.quantity; i++) {
+                        sessions.push({
+                            customer_name: builder.customerName || 'Walk-in',
+                            customer_email: '',
+                            people_count: builder.peopleCount || 1,
+                            theme_id: theme.id,
+                            package: builder.packages.map(p => `${p.quantity}x ${p.label}`).join(', '),
+                            addons: builder.addons.map(a => ({ id: a.id, label: a.label, quantity: a.quantity, price: a.price })),
+                            cafe_snacks: builder.cafeSnacks.map(c => ({ id: c.id, label: c.label, quantity: c.quantity, price: c.price })),
+                            promo: builder.promo ? builder.promo.label : null,
+                            note: builder.note || null,
+                            payment_method: builder.paymentMethod,
+                            total: t,
+                        });
+                    }
+                });
+            } else {
+                // Cafe-only order
+                sessions.push({
+                    customer_name: builder.customerName || 'Walk-in',
+                    customer_email: '',
+                    people_count: builder.peopleCount || 1,
+                    theme_id: 'cafe',
+                    package: 'Cafe Only',
+                    addons: [],
+                    cafe_snacks: builder.cafeSnacks.map(c => ({ id: c.id, label: c.label, quantity: c.quantity, price: c.price })),
+                    promo: builder.promo ? builder.promo.label : null,
+                    note: builder.note || null,
+                    payment_method: builder.paymentMethod,
+                    total: t,
+                });
+            }
+
+            // 2. Call API with explicit IDs
+            const payload = {
+                sessions,
+                branch_id: storeBranch?.id,
+                shift_id: currentShift?.id || null,
+                user_id: storeUser?.id,
+            };
+
+            const { api } = await import('../utils/api');
+            const res = await api.post('/transactions', payload);
+
+            if (res.data?.success) {
+                // Also run local processPayment to update counters (but don't resend to backend)
+                processPayment();
+                setCompletedTx({ ...res.data.all_sessions[0], all_sessions: res.data.all_sessions });
                 useStore.getState().refreshTransactions();
             } else {
-                alert("Failed to process transaction");
+                setTxError('Transaction failed. Please try again.');
             }
 
         } catch (err) {
-            console.error("Transaction sync failed", err);
-            alert("Payment failed: " + err.message);
+            console.error('Transaction failed', err);
+            // Show the real backend error message, not just the HTTP status text
+            const backendMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+            setTxError(`Payment failed: ${backendMsg}`);
         } finally {
             setIsProcessing(false);
         }
@@ -636,6 +696,18 @@ export default function NewTransaction() {
                                 </div>
                             )}
 
+                            {!hasShift && (
+                                <div style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '10px 12px', borderRadius: 8,
+                                    background: '#FFF0F0', color: '#FF3B30',
+                                    fontSize: 12, fontWeight: 600, marginBottom: 12,
+                                }}>
+                                    <AlertCircle size={14} />
+                                    No active shift. Open a shift first before processing transactions.
+                                </div>
+                            )}
+
                             {!hasItems && (
                                 <div style={{
                                     display: 'flex', alignItems: 'center', gap: 8,
@@ -657,6 +729,19 @@ export default function NewTransaction() {
                                 }}>
                                     <AlertCircle size={14} />
                                     Select a payment method
+                                </div>
+                            )}
+
+                            {txError && (
+                                <div style={{
+                                    display: 'flex', alignItems: 'flex-start', gap: 8,
+                                    padding: '10px 12px', borderRadius: 8,
+                                    background: '#FFF0F0', color: '#FF3B30',
+                                    fontSize: 12, fontWeight: 600, marginBottom: 12,
+                                    lineHeight: 1.4,
+                                }}>
+                                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                                    <span>{txError}</span>
                                 </div>
                             )}
 
