@@ -47,8 +47,11 @@ const corsOptions = {
 
 const io = new Server(server, {
     cors: {
-        origin: '*',
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+        origin: function (origin, callback) {
+            callback(null, origin || true);
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     }
 });
 
