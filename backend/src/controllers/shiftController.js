@@ -1,6 +1,6 @@
 const { db } = require('../config/db');
 const { shifts, expenses, users } = require('../db/schema');
-const { eq, and, sql } = require('drizzle-orm');
+const { eq, and, sql, gte, lte } = require('drizzle-orm');
 
 /**
  * POST /api/shifts/start
@@ -116,28 +116,38 @@ exports.endShift = async (req, res) => {
  */
 exports.getCurrentShift = async (req, res) => {
   try {
-    const branchId = parseInt(req.query.branch_id || req.branchFilter || req.user?.branchId);
+    const branchIdAttr = req.query.branch_id || req.branchFilter || req.user?.branchId;
+    const branchId = branchIdAttr && branchIdAttr !== 'ALL' ? parseInt(branchIdAttr) : null;
 
-    const shift = await db.query.shifts.findFirst({
-      where: and(
-        eq(shifts.branchId, branchId),
-        eq(shifts.status, 'open')
-      ),
+    const where = branchId 
+      ? and(eq(shifts.branchId, branchId), eq(shifts.status, 'open'))
+      : eq(shifts.status, 'open');
+
+    const results = await db.query.shifts.findMany({
+      where,
       with: {
         user: { columns: { fullName: true, username: true } },
         expenses: true,
       },
+      orderBy: (shifts, { desc }) => [desc(shifts.startTime)],
     });
 
-    if (!shift) {
+    if (results.length === 0) {
       return res.json(null);
     }
 
-    // Map to expected format
-    res.json({
-      ...shift,
-      user: shift.user ? { full_name: shift.user.fullName, username: shift.user.username } : null,
+    const mapShift = (sh) => ({
+      ...sh,
+      user: sh.user ? { full_name: sh.user.fullName, username: sh.user.username } : null,
+      opening_cash: parseFloat(sh.openingCash || 0),
+      start_time: sh.startTime,
     });
+
+    if (branchId) {
+      return res.json(mapShift(results[0]));
+    }
+
+    res.json(results.map(mapShift));
   } catch (error) {
     console.error('getCurrentShift error:', error);
     res.status(500).json({ error: 'Failed to get current shift' });
@@ -178,13 +188,17 @@ exports.addExpense = async (req, res) => {
  */
 exports.getShiftHistory = async (req, res) => {
   try {
-    const branchId = parseInt(req.query.branch_id || req.branchFilter || req.user?.branchId);
+    const branchIdAttr = req.query.branch_id || req.branchFilter || req.user?.branchId;
+    const branchId = branchIdAttr && branchIdAttr !== 'ALL' ? parseInt(branchIdAttr) : null;
     const { date_from, date_to } = req.query;
 
     const conditions = [
-      eq(shifts.branchId, branchId),
       eq(shifts.status, 'closed')
     ];
+
+    if (branchId) {
+      conditions.push(eq(shifts.branchId, branchId));
+    }
 
     if (date_from) {
       const from = new Date(date_from);

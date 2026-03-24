@@ -1,19 +1,32 @@
+import { formatDistanceToNow, parseISO, differenceInMinutes, differenceInSeconds } from 'date-fns';
+
 /**
  * Format elapsed time from a timestamp into "Xm Xs ago" style
  */
 export function formatWaitingTime(createdAt) {
-    const now = new Date();
-    const created = new Date(createdAt);
-    const diffMs = now - created;
-    const totalSeconds = Math.floor(diffMs / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
+    if (!createdAt) return '—';
+    try {
+        const date = typeof createdAt === 'string' ? parseISO(createdAt) : new Date(createdAt);
+        if (isNaN(date.getTime())) return '—';
 
-    if (minutes === 0) return `${seconds}s`;
-    if (minutes < 60) return `${minutes}m ${seconds}s`;
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
+        const now = new Date();
+        const diffSec = differenceInSeconds(now, date);
+        if (diffSec < 0) return 'Just now';
+
+        if (diffSec < 60) return `${diffSec}s`;
+        
+        const diffMin = differenceInMinutes(now, date);
+        if (diffMin < 60) {
+            const secs = diffSec % 60;
+            return `${diffMin}m ${secs}s`;
+        }
+
+        const hours = Math.floor(diffMin / 60) || 0;
+        const mins = diffMin % 60 || 0;
+        return `${hours}h ${mins}m`;
+    } catch (e) {
+        return '—';
+    }
 }
 
 /**

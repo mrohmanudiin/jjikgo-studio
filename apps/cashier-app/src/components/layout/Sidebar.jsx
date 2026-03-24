@@ -3,13 +3,14 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { usePrintAlerts } from '../../App';
 import {
-    LayoutDashboard, Plus, ListOrdered, LogOut, Camera, ChevronLeft, ChevronRight, Settings
+    LayoutDashboard, Plus, ListOrdered, LogOut, Camera, ChevronLeft, ChevronRight, Settings, DollarSign
 } from 'lucide-react';
 
 const NAV = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/transaction', icon: Plus, label: 'New Transaction' },
     { to: '/queue', icon: ListOrdered, label: 'Queue' },
+    { to: '/shift', icon: DollarSign, label: 'Shift' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 

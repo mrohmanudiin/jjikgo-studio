@@ -22,28 +22,34 @@ export function DailyCash() {
     const [actualCash, setActualCash] = useState('');
 
     const fetchData = useCallback(async () => {
-        if (!selectedBranch) {
-            setLoading(false);
-            return;
-        }
         setLoading(true);
         try {
+            const isAll = !selectedBranch || selectedBranch.id === 'ALL';
+            const params = isAll ? '' : `?branch_id=${selectedBranch.id}`;
+            
             const [shiftRes, historyRes] = await Promise.all([
-                api.get(`/shifts/current?branch_id=${selectedBranch.id}`),
-                api.get(`/shifts/history?branch_id=${selectedBranch.id}`)
+                api.get(`/shifts/current${params}`),
+                api.get(`/shifts/history${params}`)
             ]);
 
+            // If ALL branches, currentShift might be an array or we need to handle it.
+            // Backend /shifts/current usually returns a single object for a branch.
+            // If branch_id is omitted, we should check if the backend handles it.
+            // Assuming for now it returns null or the latest if omitted.
             setCurrentShift(shiftRes.data || null);
             setPreviousShifts(historyRes.data || []);
 
             if (shiftRes.data?.id) {
-                const txRes = await api.get(`/transactions?branch_id=${selectedBranch.id}&shift_id=${shiftRes.data.id}`);
-                setShiftTransactions(txRes.data.filter(t => t.status === 'done') || []);
+                const txParams = new URLSearchParams();
+                if (!isAll) txParams.append('branch_id', selectedBranch.id);
+                txParams.append('shift_id', shiftRes.data.id);
+                const txRes = await api.get(`/transactions?${txParams.toString()}`);
+                setShiftTransactions(txRes.data.filter(t => t.status !== 'cancelled') || []);
             } else {
                 setShiftTransactions([]);
             }
         } catch (err) {
-            console.error(err);
+            console.error('Fetch daily cash data failed:', err);
         } finally {
             setLoading(false);
         }
@@ -70,6 +76,7 @@ export function DailyCash() {
                 
                 socket.on('queueUpdated', handleUpdate);
                 socket.on('adminEvent', handleUpdate);
+                socket.on('shiftUpdated', handleUpdate);
             } catch (err) {
                 console.error('Socket import failed', err);
             }
@@ -82,6 +89,7 @@ export function DailyCash() {
             if (socketInstance) {
                 socketInstance.off('queueUpdated');
                 socketInstance.off('adminEvent');
+                socketInstance.off('shiftUpdated');
             }
         };
     }, [fetchData]);
@@ -96,23 +104,59 @@ export function DailyCash() {
     const processShiftData = () => {
         if (!currentShift) return null;
 
+        // Combined view for ALL branches
+        if (Array.isArray(currentShift)) {
+            let totalCash = 0, totalQris = 0, totalEdc = 0, totalTransfer = 0, totalOpening = 0;
+            
+            // We need to sum transactions across all these shifts
+            // But shiftTransactions already contains all transactions if branch_id was omitted.
+            shiftTransactions.forEach(t => {
+                const val = Number(t.totalPrice || t.total_price || t.total) || 0;
+                let pm = (t.paymentMethod || t.payment_method || 'cash').toLowerCase();
+                if (pm.includes('qris')) totalQris += val;
+                else if (pm.includes('edc') || pm.includes('card')) totalEdc += val;
+                else if (pm.includes('transfer')) totalTransfer += val;
+                else totalCash += val;
+            });
+
+            currentShift.forEach(sh => {
+                totalOpening += Number(sh.openingCash || sh.startingCash || 0);
+            });
+
+            return {
+                cashier: 'Multiple Active',
+                start: 'Varies',
+                end: 'Now',
+                openingCash: totalOpening,
+                cash: totalCash, qris: totalQris, edc: totalEdc, transfer: totalTransfer,
+                totalSales: totalCash + totalQris + totalTransfer + totalEdc
+            };
+        }
+
+        // Single branch view
         let cash = 0, qris = 0, edc = 0, transfer = 0;
         shiftTransactions.forEach(t => {
-            const val = Number(t.total) || 0;
-            let pm = t.payment_method?.toLowerCase() || 'cash';
+            const val = Number(t.totalPrice || t.total_price || t.total) || 0;
+            let pm = (t.paymentMethod || t.payment_method || 'cash').toLowerCase();
             if (pm.includes('qris')) qris += val;
             else if (pm.includes('edc') || pm.includes('card')) edc += val;
             else if (pm.includes('transfer')) transfer += val;
             else cash += val;
         });
 
-        const start = currentShift.start_time ? format(parseISO(currentShift.start_time), 'HH:mm') : '--:--';
+        const rawStart = currentShift.startTime || currentShift.start_time;
+        let start = '--:--';
+        try {
+            if (rawStart) {
+                start = format(typeof rawStart === 'string' ? parseISO(rawStart) : rawStart, 'HH:mm');
+            }
+        } catch(e) { /* fallback */ }
         
         return {
-            cashier: currentShift.user?.full_name || 'Unknown',
+            cashier: currentShift.user?.full_name || currentShift.user?.fullName || 'Unknown',
             start,
             end: 'Now',
-            openingCash: Number(currentShift.starting_cash) || 0,
+            openingCash: Number(currentShift.openingCash || currentShift.startingCash || 0),
             cash, qris, edc, transfer,
             totalSales: cash + qris + edc + transfer
         };
@@ -125,7 +169,10 @@ export function DailyCash() {
     if (loading) {
         return (
             <div className="flex justify-center items-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground animate-pulse">Syncing cash records...</p>
+                </div>
             </div>
         );
     }
@@ -142,47 +189,33 @@ export function DailyCash() {
                 </Button>
             </div>
 
-            {!selectedBranch ? (
-                <Card className="border-dashed py-12">
-                    <CardContent className="flex flex-col items-center justify-center space-y-3">
-                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                            <Banknote className="h-6 w-6 text-muted-foreground" />
-                        </div>
-                        <h3 className="font-semibold text-lg text-center">Select a Branch</h3>
-                        <p className="text-muted-foreground text-center">Please select a specific branch to view daily cash and shift data.</p>
-                    </CardContent>
-                </Card>
-            ) : !shiftData ? (
-                <Card className="border-dashed py-12">
-                     <CardContent className="flex flex-col items-center justify-center space-y-3">
-                         <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                             <Clock className="h-6 w-6 text-muted-foreground" />
-                         </div>
-                         <h3 className="font-semibold text-lg text-center">No Active Shift</h3>
-                         <p className="text-muted-foreground text-center">There is currently no open shift at this branch.</p>
-                     </CardContent>
-                 </Card>
-            ) : (
+            {shiftData ? (
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     <Card className="lg:col-span-2">
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <div>
-                                <CardTitle>Current Shift Summary</CardTitle>
+                                <CardTitle>{selectedBranch?.id === 'ALL' ? 'Combined Shift Summary' : 'Current Shift Summary'}</CardTitle>
                                 <CardDescription className="flex items-center gap-2 mt-1">
-                                    <User className="h-3.5 w-3.5" /> {shiftData.cashier}
-                                    <span className="text-muted-foreground">•</span>
-                                    <Clock className="h-3.5 w-3.5" /> {shiftData.start} — {shiftData.end}
+                                    {selectedBranch?.id === 'ALL' ? (
+                                        <>Multiple Branches active across the studio</>
+                                    ) : (
+                                        <>
+                                            <User className="h-3.5 w-3.5" /> {shiftData.cashier}
+                                            <span className="text-muted-foreground">•</span>
+                                            <Clock className="h-3.5 w-3.5" /> {shiftData.start} — {shiftData.end}
+                                        </>
+                                    )}
                                 </CardDescription>
                             </div>
                             <Badge variant="outline" className="border-emerald-500/20 text-emerald-600 bg-emerald-500/10 shrink-0">Live</Badge>
                         </CardHeader>
                         <CardContent className="space-y-0">
                             <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="p-4 bg-muted/50 rounded-lg">
+                                <div className="p-4 bg-muted/50 rounded-lg border border-white/5">
                                     <p className="text-xs text-muted-foreground uppercase font-medium">Opening Cash</p>
                                     <p className="text-lg font-bold mt-1">Rp {shiftData.openingCash.toLocaleString('id-ID')}</p>
                                 </div>
-                                <div className="p-4 bg-muted/50 rounded-lg">
+                                <div className="p-4 bg-muted/50 rounded-lg border border-white/5">
                                     <p className="text-xs text-muted-foreground uppercase font-medium">Total Shift Sales</p>
                                     <p className="text-lg font-bold text-primary mt-1">Rp {shiftData.totalSales.toLocaleString('id-ID')}</p>
                                 </div>
@@ -259,6 +292,16 @@ export function DailyCash() {
                         </CardContent>
                     </Card>
                 </div>
+            ) : (
+                <Card className="border-dashed py-12">
+                     <CardContent className="flex flex-col items-center justify-center space-y-3">
+                         <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                             <Clock className="h-6 w-6 text-muted-foreground" />
+                         </div>
+                         <h3 className="font-semibold text-lg text-center">No Active Shift</h3>
+                         <p className="text-muted-foreground text-center">There are currently no open shifts {selectedBranch?.id === 'ALL' ? 'at any branch' : 'at this branch'}.</p>
+                     </CardContent>
+                 </Card>
             )}
 
             <Card>

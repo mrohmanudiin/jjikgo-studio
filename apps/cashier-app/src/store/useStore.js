@@ -88,12 +88,38 @@ export const useStore = create(
 
             refreshTransactions: async () => {
                 try {
-                    const { fetchTransactions } = await import('../utils/api');
-                    const txs = await fetchTransactions();
-                    set({ transactions: Array.isArray(txs) ? txs : [] });
+                    const { api } = await import('../utils/api');
+                    const branchId = get().branch?.id;
+                    const params = branchId ? `?branch_id=${branchId}` : '';
+                    const response = await api.get(`/transactions${params}`);
+                    const raw = Array.isArray(response.data) ? response.data : [];
 
-                    // Also derive invoice counter and theme counters from backend if needed
-                    // But maybe simply setting transactions is enough.
+                    // Normalize backend shape → Cashier store shape
+                    // Backend returns transactions with joined queue data.
+                    // We flatten it so both `order_status` and `status` work.
+                    const normalized = raw.map(t => {
+                        // Backend may return queue as nested or flatten at top level
+                        const queueStatus = t.queue?.status || t.queues?.[0]?.status || t.status || t.order_status || 'waiting';
+                        const queueNumber = t.queue?.queue_number ?? t.queue?.queueNumber ?? t.queue_number ?? t.queueNumber;
+                        return {
+                            ...t,
+                            // Normalize status fields
+                            order_status: queueStatus,
+                            status: queueStatus,
+                            // Normalize timestamp fields
+                            created_at: t.created_at || t.createdAt,
+                            // Normalize queue_number
+                            queue_number: queueNumber != null ? queueNumber : t.queue_number,
+                            // Normalize nested names
+                            customer_name: t.customer_name || t.customerName,
+                            people_count: t.people_count || t.peopleCount || 1,
+                            theme_id: t.theme_id || t.themeId,
+                            // Queue id for status updates (use queue id if available)
+                            queue_id: t.queue?.id || t.queues?.[0]?.id || t.queue_id || t.id,
+                        };
+                    });
+
+                    set({ transactions: normalized });
                 } catch (err) {
                     console.error("Transaction refresh failed", err);
                 }
@@ -105,6 +131,7 @@ export const useStore = create(
             user: null, // { id, username, full_name, role, branch_id }
             branch: null, // { id, name, location }
             currentShift: null, // { id, starting_cash, start_time, total_expenses }
+            shiftHistory: [],
 
             login: async (username, password) => {
                 try {
@@ -143,6 +170,18 @@ export const useStore = create(
             }),
 
             // Shift Management
+            refreshShiftHistory: async () => {
+                const { branch } = get();
+                if (!branch) return;
+                try {
+                    const { api } = await import('../utils/api');
+                    const response = await api.get(`/shifts/history?branch_id=${branch.id}`);
+                    set({ shiftHistory: response.data || [] });
+                } catch (err) {
+                    console.error("Failed to refresh shift history", err);
+                }
+            },
+
             refreshCurrentShift: async () => {
                 const { branch } = get();
                 if (!branch) return;
@@ -435,7 +474,11 @@ export const useStore = create(
             updateOrderStatus: async (id, status) => {
                 try {
                     const { updateOrderStatusApi } = await import('../utils/api');
-                    await updateOrderStatusApi(id, status);
+                    // Use queue_id from normalized transaction (backend status updates operate on queues)
+                    const txs = get().transactions;
+                    const tx = (Array.isArray(txs) ? txs : []).find(t => t.id === id || t.queue_id === id);
+                    const targetId = tx?.queue_id || id;
+                    await updateOrderStatusApi(targetId, status);
                     get().refreshTransactions();
                 } catch (e) {
                     console.error("Failed to update status", e);
@@ -496,7 +539,10 @@ export const useStore = create(
             confirmPrint: async (id) => {
                 try {
                     const { updateOrderStatusApi } = await import('../utils/api');
-                    await updateOrderStatusApi(id, 'printing');
+                    const txs = get().transactions;
+                    const tx = (Array.isArray(txs) ? txs : []).find(t => t.id === id || t.queue_id === id);
+                    const targetId = tx?.queue_id || id;
+                    await updateOrderStatusApi(targetId, 'printing');
                     get().refreshTransactions();
                 } catch (e) {
                     console.error('Failed to confirm print', e);

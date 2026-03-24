@@ -81,7 +81,9 @@ export function TransactionHistory() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (selectedBranch) params.append('branch_id', selectedBranch.id);
+      if (selectedBranch && selectedBranch.id !== 'ALL') {
+        params.append('branch_id', selectedBranch.id);
+      }
       const dateRange = getDateRange(range, customFrom, customTo);
       if (dateRange.from) params.append('date_from', dateRange.from);
       if (dateRange.to) params.append('date_to', dateRange.to);

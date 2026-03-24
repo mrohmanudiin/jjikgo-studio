@@ -21,28 +21,22 @@ import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
 import { format, subDays, startOfWeek, startOfMonth, parseISO, getHours } from 'date-fns';
 
-function getDateRange(range, customFrom, customTo) {
-    const now = new Date();
-    switch (range) {
-        case 'Today':
-            return { from: format(now, 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
-        case 'Yesterday':
-            return { from: format(subDays(now, 1), 'yyyy-MM-dd'), to: format(subDays(now, 1), 'yyyy-MM-dd') };
-        case '7 Days':
-            return { from: format(subDays(now, 7), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
-        case '30 Days':
-            return { from: format(subDays(now, 30), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
-        case 'This Month':
-            return { from: format(startOfMonth(now), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd') };
-        case 'Custom':
-            return { from: customFrom, to: customTo };
-        default:
-            return {};
-    }
+function getComparisonRange(range, currentFrom, currentTo) {
+    if (!currentFrom || !currentTo) return {};
+    const from = parseISO(currentFrom);
+    const to = parseISO(currentTo);
+    const diff = Math.max(1, (new Date(currentTo) - new Date(currentFrom)) / (1000 * 60 * 60 * 24) + 1);
+    
+    return {
+        from: format(subDays(from, Math.round(diff)), 'yyyy-MM-dd'),
+        to: format(subDays(to, Math.round(diff)), 'yyyy-MM-dd')
+    };
 }
 
 function StatCard({ title, value, subtext, icon: Icon, trend, colorClass = 'text-primary', bgClass = 'bg-primary/10' }) {
     const positive = trend !== undefined && trend >= 0;
+    const hasTrend = trend !== undefined && trend !== null && !isNaN(trend);
+    
     return (
         <div className="bg-card/50 backdrop-blur-md rounded-3xl border border-white/10 shadow-sm hover:shadow-xl transition-all duration-300 group overflow-hidden relative">
             <div className="absolute top-0 right-0 p-32 bg-gradient-to-br from-primary/5 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
@@ -51,10 +45,10 @@ function StatCard({ title, value, subtext, icon: Icon, trend, colorClass = 'text
                     <div className={`${bgClass} p-3 rounded-2xl group-hover:scale-110 transition-transform duration-300`}>
                         <Icon className={`h-6 w-6 ${colorClass}`} />
                     </div>
-                    {trend !== undefined && trend !== null && (
-                        <div className={`flex items-center gap-1 text-xs font-bold ${positive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                    {hasTrend && (
+                        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${positive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                             {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3 rotate-90" />}
-                            {Math.abs(trend)}%
+                            {Math.abs(trend).toFixed(1)}%
                         </div>
                     )}
                 </div>
@@ -70,19 +64,27 @@ export function FinanceDashboard() {
     const { selectedBranch } = useBranch();
     const [dateRange, setDateRange] = useState('30 Days');
     const [transactions, setTransactions] = useState([]);
+    const [comparisonTransactions, setComparisonTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showComparison, setShowComparison] = useState(true);
     const [showTargetModal, setShowTargetModal] = useState(false);
     const [targets, setTargets] = useState({ daily: 1000000, monthly: 30000000, yearly: 360000000 });
 
     const fetchSettings = useCallback(async () => {
         try {
             const params = new URLSearchParams();
-            if (selectedBranch) params.append('branchFilter', selectedBranch.id);
+            if (selectedBranch && selectedBranch.id !== 'ALL') {
+                params.append('branchFilter', selectedBranch.id);
+            }
             const { data } = await api.get(`/studio/settings?${params}`);
+            
+            // Map array of settings to object
+            const settingsMap = Array.isArray(data) ? data.reduce((acc, s) => ({ ...acc, [s.key]: s.value }), {}) : data;
+            
             setTargets({
-                daily: Number(data.daily_target_revenue) || 1000000,
-                monthly: Number(data.monthly_target_revenue) || 30000000,
-                yearly: Number(data.yearly_target_revenue) || 360000000,
+                daily: Number(settingsMap.daily_target_revenue) || 1000000,
+                monthly: Number(settingsMap.monthly_target_revenue) || 30000000,
+                yearly: Number(settingsMap.yearly_target_revenue) || 360000000,
             });
         } catch(err) {
             console.error('Failed to fetch settings', err);
@@ -95,21 +97,17 @@ export function FinanceDashboard() {
 
     const handleSaveTargets = async () => {
         try {
-            const payloadDaily = { key: 'daily_target_revenue', value: targets.daily };
-            const payloadMonthly = { key: 'monthly_target_revenue', value: targets.monthly };
-            const payloadYearly = { key: 'yearly_target_revenue', value: targets.yearly };
+            const payloads = [
+                { key: 'daily_target_revenue', value: String(targets.daily) },
+                { key: 'monthly_target_revenue', value: String(targets.monthly) },
+                { key: 'yearly_target_revenue', value: String(targets.yearly) },
+            ];
 
-            if (selectedBranch) {
-                payloadDaily.branch_id = selectedBranch.id;
-                payloadMonthly.branch_id = selectedBranch.id;
-                payloadYearly.branch_id = selectedBranch.id;
+            if (selectedBranch && selectedBranch.id !== 'ALL') {
+                payloads.forEach(p => p.branch_id = selectedBranch.id);
             }
 
-            await Promise.all([
-                api.post('/studio/settings', payloadDaily),
-                api.post('/studio/settings', payloadMonthly),
-                api.post('/studio/settings', payloadYearly),
-            ]);
+            await Promise.all(payloads.map(p => api.post('/studio/settings', p)));
             setShowTargetModal(false);
             fetchSettings();
         } catch(e) {
@@ -118,20 +116,29 @@ export function FinanceDashboard() {
         }
     };
 
-    const formatCurrency = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
+    const formatCurrency = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
 
     const fetchTransactions = useCallback(async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams();
-            if (selectedBranch) params.append('branch_id', selectedBranch.id);
             const rangeObj = getDateRange(dateRange, null, null);
-            if (rangeObj.from) params.append('date_from', rangeObj.from);
-            if (rangeObj.to) params.append('date_to', rangeObj.to);
+            const compRange = getComparisonRange(dateRange, rangeObj.from, rangeObj.to);
 
-            const { data } = await api.get(`/transactions?${params}`);
-            // Consider all non-cancelled transactions for finance since payment is upfront
-            setTransactions(data.filter(t => t.status !== 'cancelled'));
+            const buildParams = (r) => {
+                const p = new URLSearchParams();
+                if (selectedBranch && selectedBranch.id !== 'ALL') p.append('branch_id', selectedBranch.id);
+                if (r.from) p.append('date_from', r.from);
+                if (r.to) p.append('date_to', r.to);
+                return p.toString();
+            };
+
+            const [currentRes, prevRes] = await Promise.all([
+                api.get(`/transactions?${buildParams(rangeObj)}`),
+                api.get(`/transactions?${buildParams(compRange)}`)
+            ]);
+
+            setTransactions(currentRes.data.filter(t => t.status !== 'cancelled'));
+            setComparisonTransactions(prevRes.data.filter(t => t.status !== 'cancelled'));
         } catch (err) {
             console.error(err);
         } finally {
@@ -147,97 +154,162 @@ export function FinanceDashboard() {
         let isMounted = true;
         import('../utils/socket').then(({ socket }) => {
             if (!isMounted) return;
-            const handleUpdate = () => {
-                fetchTransactions();
-            };
+            const handleUpdate = () => fetchTransactions();
             socket.on('queueUpdated', handleUpdate);
             socket.on('adminEvent', handleUpdate);
+            socket.on('transactionUpdated', handleUpdate);
             
             return () => {
                 socket.off('queueUpdated', handleUpdate);
                 socket.off('adminEvent', handleUpdate);
+                socket.off('transactionUpdated', handleUpdate);
             };
         });
         return () => { isMounted = false; };
     }, [fetchTransactions]);
 
+    const calculateMetrics = (txList) => {
+        let revenue = 0;
+        const methods = { qris: 0, edc: 0, transfer: 0, cash: 0 };
+        const items = { themes: {}, packages: {}, snacks: {}, addons: {} };
+        const peakMap = Array.from({ length: 14 }).map((_, i) => ({ time: `${i + 9}:00`, count: 0 }));
+
+        txList.forEach(t => {
+            const total = Number(t.total_price || t.totalPrice || t.total) || 0;
+            revenue += total;
+
+            // Payment Method
+            let pm = (t.payment_method || t.paymentMethod || 'cash').toLowerCase();
+            if (pm.includes('qris')) methods.qris += total;
+            else if (pm.includes('edc') || pm.includes('card')) methods.edc += total;
+            else if (pm.includes('transfer')) methods.transfer += total;
+            else methods.cash += total;
+
+            // Peak Hours
+            const hour = getHours(parseISO(t.created_at));
+            if (hour >= 9 && hour <= 22) peakMap[hour - 9].count += 1;
+
+            // Breakdown (Strict Separation)
+            let componentSnack = 0;
+            let componentAddon = 0;
+
+            const snacksArr = Array.isArray(t.cafe_snacks) ? t.cafe_snacks : (typeof t.cafe_snacks === 'string' ? JSON.parse(t.cafe_snacks) : []);
+            snacksArr.forEach(s => {
+                const sRev = (Number(s.price) || 0) * (Number(s.quantity) || 1);
+                componentSnack += sRev;
+                items.snacks[s.name || s.label] = (items.snacks[s.name || s.label] || 0) + sRev;
+            });
+
+            const addonsArr = Array.isArray(t.addons) ? t.addons : (typeof t.addons === 'string' ? JSON.parse(t.addons) : []);
+            addonsArr.forEach(a => {
+                const aRev = (Number(a.price) || 0) * (Number(a.quantity) || 1);
+                componentAddon += aRev;
+                items.addons[a.name || a.label] = (items.addons[a.name || a.label] || 0) + aRev;
+            });
+
+            // Theme & Package get the remainder (base photoshoot price)
+            const packageRev = total - componentSnack - componentAddon;
+            const pName = t.package_name || t.packageName || 'Base';
+            const tName = t.theme || 'Cafe Only';
+            
+            if (pName !== 'Base') items.packages[pName] = (items.packages[pName] || 0) + packageRev;
+            items.themes[tName] = (items.themes[tName] || 0) + packageRev;
+        });
+
+        return { revenue, count: txList.length, avg: txList.length ? revenue / txList.length : 0, methods, items, peakMap };
+    };
+
+    const metrics = useMemo(() => calculateMetrics(transactions), [transactions]);
+    const prevMetrics = useMemo(() => calculateMetrics(comparisonTransactions), [comparisonTransactions]);
+
+    const getTrend = (curr, prev) => {
+        if (!prev) return 0;
+        return ((curr - prev) / prev) * 100;
+    };
+
     const {
         totalRevenue,
         totalTransactions,
         avgCheckSize,
-        netProfit,
         paymentMethodData,
         peakHourHeatmapData,
         themeRevenueData,
+        packageRevenueData,
+        cafeSnackRevenueData,
+        addonRevenueData,
         recentLargeTransactions
     } = useMemo(() => {
-        let rev = 0;
-        const methods = { qris: 0, edc: 0, transfer: 0, cash: 0 };
-        const peakMap = Array.from({ length: 14 }).map((_, i) => ({ time: `${i + 9}:00`, load: 0, count: 0 })); // 9 AM to 10 PM
-        const themes = {};
-
-        transactions.forEach(t => {
-            const val = Number(t.total) || 0;
-            rev += val;
-            
-            // Normalize payment method
-            let pm = t.payment_method?.toLowerCase() || 'cash';
-            if (pm.includes('qris')) pm = 'qris';
-            else if (pm.includes('edc') || pm.includes('card')) pm = 'edc';
-            else if (pm.includes('transfer')) pm = 'transfer';
-            else pm = 'cash';
-
-            if (methods[pm] !== undefined) {
-                methods[pm] += val;
-            } else {
-                methods.cash += val; // fallback
-            }
-
-            const hour = getHours(parseISO(t.created_at));
-            if (hour >= 9 && hour <= 22) {
-                peakMap[hour - 9].count += 1;
-            }
-
-            const themeName = t.theme || 'Cafe Only';
-            themes[themeName] = (themes[themeName] || 0) + val;
-        });
-
+        const { revenue, count, avg, methods, items, peakMap } = metrics;
+        
         const maxHourCount = Math.max(...peakMap.map(p => p.count), 1);
-        peakMap.forEach(p => {
-            p.load = Math.round((p.count / maxHourCount) * 100);
-        });
+        const peakData = peakMap.map(p => ({ ...p, load: Math.round((p.count / maxHourCount) * 100) }));
 
-        const avg = transactions.length > 0 ? rev / transactions.length : 0;
-        const profit = rev * 0.68; // Arbitrary 68% margin for est. net profit
-
-        const tRevenueData = Object.entries(themes).map(([name, revenue]) => ({ name, revenue })).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
         const pMethodData = [
             { name: 'QRIS', value: methods.qris, color: 'hsl(var(--primary))' },
-            { name: 'EDC (Card)', value: methods.edc, color: '#3b82f6' },
+            { name: 'EDC', value: methods.edc, color: '#3b82f6' },
             { name: 'Transfer', value: methods.transfer, color: '#8b5cf6' },
             { name: 'Cash', value: methods.cash, color: '#10b981' },
         ];
 
-        const rLarge = [...transactions].sort((a, b) => Number(b.total) - Number(a.total)).slice(0, 5).map(t => ({
+        const tRev = Object.entries(items.themes).map(([name, revenue]) => ({ name, revenue })).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
+        const pRev = Object.entries(items.packages).map(([name, revenue]) => ({ name, revenue })).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
+        
+        const csRev = Object.entries(items.snacks).map(([name, revenue]) => ({ name, revenue })).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
+        const aRev = Object.entries(items.addons).map(([name, revenue]) => ({ name, revenue })).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
+
+        const rLarge = [...transactions].sort((a, b) => (Number(b.total_price || b.total) || 0) - (Number(a.total_price || a.total) || 0)).slice(0, 5).map(t => ({
             id: t.invoice_number,
-            amount: Number(t.total),
-            method: t.payment_method,
+            amount: Number(t.total_price || t.total) || 0,
+            method: t.payment_method || 'Cash',
             time: format(parseISO(t.created_at), 'HH:mm'),
             cust: `${t.customer_name || 'Walk-in'} (${t.people_count || 1} pax)`
         }));
 
-        return {
-            totalRevenue: rev,
-            totalTransactions: transactions.length,
-            avgCheckSize: avg,
-            netProfit: profit,
-            paymentMethodData: pMethodData,
-            peakHourHeatmapData: peakMap,
-            themeRevenueData: tRevenueData,
-            recentLargeTransactions: rLarge
-        };
-    }, [transactions]);
+        const bestSellers = [
+            ...tRev.map(r => ({ name: r.name, category: 'Theme', revenue: r.revenue })),
+            ...pRev.map(r => ({ name: r.name, category: 'Package', revenue: r.revenue })),
+            ...csRev.map(r => ({ name: r.name, category: 'Cafe', revenue: r.revenue })),
+        ].sort((a,b) => b.revenue - a.revenue).slice(0, 10);
 
+        return {
+            totalRevenue: revenue,
+            totalTransactions: count,
+            avgCheckSize: avg,
+            paymentMethodData: pMethodData,
+            peakHourHeatmapData: peakData,
+            themeRevenueData: tRev,
+            packageRevenueData: pRev,
+            cafeSnackRevenueData: csRev,
+            addonRevenueData: aRev,
+            recentLargeTransactions: rLarge,
+            bestSellers
+        };
+    }, [metrics, transactions]);
+
+    const exportToCSV = () => {
+        const headers = ["Date", "Invoice", "Customer", "Branch", "Method", "Total"];
+        const rows = transactions.map(t => [
+            format(parseISO(t.created_at), 'yyyy-MM-dd HH:mm'),
+            t.invoice_number,
+            t.customer_name,
+            t.branch?.name || t.branch_id,
+            t.payment_method,
+            t.total
+        ]);
+        
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + headers.join(",") + "\n"
+            + rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+            
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `JJIKGO_Finance_${dateRange}_${format(new Date(), 'yyyyMMdd')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Finance data exported to CSV");
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
@@ -245,31 +317,46 @@ export function FinanceDashboard() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-bold mb-3 border border-primary/20">
-                        <CircleDollarSign className="h-4 w-4" /> Finance Hub
+                        <CircleDollarSign className="h-4 w-4" /> Finance Analytics
                     </div>
                     <h1 className="text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
-                        Finance Analytics
+                        Revenue Insights
                     </h1>
                     <p className="text-muted-foreground mt-2 text-lg">
-                        Deep dive into financial metrics, revenue breakdown, and trends. {selectedBranch && <span className="text-primary font-medium">— {selectedBranch.name}</span>}
+                        Real-time financial performance and trends. {selectedBranch && <span className="text-primary font-medium">— {selectedBranch.name}</span>}
                     </p>
                 </div>
                 <div className="flex flex-col items-end gap-3">
-                    <Button variant="default" className="shadow-lg shadow-primary/20 bg-gradient-to-r from-primary to-primary/80 hover:bg-primary/90 rounded-xl" onClick={() => setShowTargetModal(true)}>
-                        <Target className="mr-2 h-4 w-4" /> Set Targets
-                    </Button>
-                    <div className="flex items-center border border-white/10 rounded-xl p-1 bg-card/50 backdrop-blur-md shadow-sm">
-                        {['Today', '7 Days', '30 Days', 'This Month'].map(range => (
-                            <Button
-                                key={range}
-                                variant={dateRange === range ? "secondary" : "ghost"}
-                                size="sm"
-                                className={`text-xs px-4 rounded-lg transition-all ${dateRange === range ? 'bg-primary/20 text-primary shadow-sm' : 'hover:bg-muted font-medium text-muted-foreground'}`}
-                                onClick={() => setDateRange(range)}
-                            >
-                                {range}
-                            </Button>
-                        ))}
+                    <div className="flex items-center gap-2">
+                        <Button variant="default" className="shadow-lg shadow-primary/20 bg-gradient-to-r from-primary to-primary/80 hover:bg-primary/90 rounded-xl" onClick={() => setShowTargetModal(true)}>
+                            <Target className="mr-2 h-4 w-4" /> Goals
+                        </Button>
+                        <Button variant="outline" className="rounded-xl border-white/10" onClick={exportToCSV}>
+                            <Download className="h-4 w-4" />
+                        </Button>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center border border-white/10 rounded-xl p-1 bg-card/50 backdrop-blur-md shadow-sm">
+                            {['Today', '7 Days', '30 Days', 'This Month'].map(range => (
+                                <Button
+                                    key={range}
+                                    variant={dateRange === range ? "secondary" : "ghost"}
+                                    size="sm"
+                                    className={`text-xs px-4 rounded-lg transition-all ${dateRange === range ? 'bg-primary/20 text-primary shadow-sm' : 'hover:bg-muted font-medium text-muted-foreground'}`}
+                                    onClick={() => setDateRange(range)}
+                                >
+                                    {range}
+                                </Button>
+                            ))}
+                        </div>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className={cn("rounded-xl border-white/10 text-xs px-4 h-9", showComparison && "bg-primary/10 border-primary/20 text-primary")}
+                            onClick={() => setShowComparison(!showComparison)}
+                        >
+                            {showComparison ? 'Comparison: On' : 'Comparison: Off'}
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -281,9 +368,33 @@ export function FinanceDashboard() {
             ) : (
                 <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                    <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} subtext="Collected" icon={CircleDollarSign} bgClass="bg-blue-500/10" colorClass="text-blue-500" />
-                    <StatCard title="Total Transactions" value={totalTransactions} subtext="Successful payments" icon={Activity} bgClass="bg-violet-500/10" colorClass="text-violet-500" />
-                    <StatCard title="Avg Check Size" value={formatCurrency(avgCheckSize)} subtext="Per transaction" icon={CreditCard} bgClass="bg-emerald-500/10" colorClass="text-emerald-500" />
+                    <StatCard 
+                        title="Total Revenue" 
+                        value={formatCurrency(totalRevenue)} 
+                        subtext="Collected" 
+                        icon={CircleDollarSign} 
+                        bgClass="bg-blue-500/10" 
+                        colorClass="text-blue-500" 
+                        trend={showComparison ? getTrend(totalRevenue, prevMetrics.revenue) : undefined}
+                    />
+                    <StatCard 
+                        title="Transactions" 
+                        value={totalTransactions} 
+                        subtext="Successful payments" 
+                        icon={Activity} 
+                        bgClass="bg-violet-500/10" 
+                        colorClass="text-violet-500" 
+                        trend={showComparison ? getTrend(totalTransactions, prevMetrics.count) : undefined}
+                    />
+                    <StatCard 
+                        title="Avg Check Size" 
+                        value={formatCurrency(avgCheckSize)} 
+                        subtext="Per transaction" 
+                        icon={CreditCard} 
+                        bgClass="bg-emerald-500/10" 
+                        colorClass="text-emerald-500" 
+                        trend={showComparison ? getTrend(avgCheckSize, prevMetrics.avg) : undefined}
+                    />
                     
                     <div className="bg-gradient-to-br from-primary/10 to-primary/5 backdrop-blur-md rounded-3xl border border-primary/20 shadow-sm relative overflow-hidden flex flex-col justify-center p-6 min-h-[140px]">
                         <div className="absolute top-0 right-0 h-full w-1/2 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
@@ -399,27 +510,93 @@ export function FinanceDashboard() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Recent Large Transactions</CardTitle>
-                            <CardDescription>Highest payments for the selected period</CardDescription>
+                            <CardTitle>Revenue By Package</CardTitle>
+                            <CardDescription>Top performing packages</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[300px]">
+                            {packageRevenueData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">No data</div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={packageRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `Rp${(v / 1000).toFixed(0)}k`} />
+                                        <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px' }} />
+                                        <Bar dataKey="revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Revenue By Cafe/Snacks</CardTitle>
+                            <CardDescription>Top selling food & beverages</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[300px]">
+                            {cafeSnackRevenueData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">No data</div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={cafeSnackRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `Rp${(v / 1000).toFixed(0)}k`} />
+                                        <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px' }} />
+                                        <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Revenue By Addons</CardTitle>
+                            <CardDescription>Top selling studio accessories</CardDescription>
+                        </CardHeader>
+                        <CardContent className="h-[300px]">
+                            {addonRevenueData.length === 0 ? (
+                                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">No data</div>
+                            ) : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={addonRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                                        <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `Rp${(v / 1000).toFixed(0)}k`} />
+                                        <Tooltip formatter={(v) => formatCurrency(v)} contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px' }} />
+                                        <Bar dataKey="revenue" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Top Best Sellers</CardTitle>
+                            <CardDescription>Consolidated performance across categories</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {recentLargeTransactions.length === 0 && (
-                                    <div className="text-center py-8 text-sm text-muted-foreground">No transactions available</div>
+                                {bestSellers.length === 0 && (
+                                    <div className="text-center py-8 text-sm text-muted-foreground">No data available</div>
                                 )}
-                                {recentLargeTransactions.map((tx, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors">
+                                {bestSellers.map((item, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-card/50 hover:bg-muted/30 transition-all border-white/5">
                                         <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                                                <TrendingUp className="h-5 w-5 text-emerald-500" />
+                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                                                #{i+1}
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-sm">{tx.cust}</p>
-                                                <p className="text-xs text-muted-foreground">{tx.id} • {tx.method} • {tx.time}</p>
+                                                <p className="font-semibold text-sm">{item.name}</p>
+                                                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{item.category}</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-bold text-primary">{formatCurrency(tx.amount)}</p>
+                                            <p className="font-bold text-primary font-mono text-sm">{formatCurrency(item.revenue)}</p>
                                         </div>
                                     </div>
                                 ))}

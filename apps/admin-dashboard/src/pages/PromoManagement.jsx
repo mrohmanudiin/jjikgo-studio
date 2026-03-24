@@ -24,7 +24,11 @@ export function PromoManagement() {
         if (!selectedBranch) return;
         setLoading(true);
         try {
-            const res = await api.get(`/studio/promos?branch_id=${selectedBranch.id}`);
+            const params = new URLSearchParams();
+            if (selectedBranch && selectedBranch.id !== 'ALL') {
+                params.append('branch_id', selectedBranch.id);
+            }
+            const res = await api.get(`/studio/promos?${params.toString()}`);
             setPromos(res.data || []);
         } catch (err) {
             console.error('Failed to load promos', err);

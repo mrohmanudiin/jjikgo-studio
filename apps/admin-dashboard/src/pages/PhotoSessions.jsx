@@ -33,7 +33,9 @@ export function PhotoSessions() {
     const fetchData = useCallback(async () => {
         try {
             const params = new URLSearchParams();
-            if (selectedBranch) params.append('branch_id', selectedBranch.id);
+            if (selectedBranch && selectedBranch.id !== 'ALL') {
+                params.append('branch_id', selectedBranch.id);
+            }
 
             const res = await api.get(`/queue?${params}`);
             const queueMap = res.data || {};

@@ -8,6 +8,7 @@ import NewTransaction from './pages/NewTransaction';
 import ProductionQueue from './pages/ProductionQueue';
 import Settings from './pages/Settings';
 import QueueTracking from './pages/QueueTracking';
+import ShiftManagement from './pages/ShiftManagement';
 import { fetchThemes, fetchPackages, fetchAddons, fetchCafeSnacks, fetchPromos, socket } from './utils/api';
 
 // ─── Print Alert Context ──────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="transaction" element={<NewTransaction />} />
             <Route path="queue" element={<ProductionQueue />} />
+            <Route path="shift" element={<ShiftManagement />} />
             <Route path="settings" element={<Settings />} />
           </Route>
 

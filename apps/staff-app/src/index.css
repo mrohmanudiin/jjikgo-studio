@@ -127,9 +127,19 @@ h1, h2, h3, h4, .font-display, .queue-num-badge, .session-queue-number, .session
 /* Call btn */
 .call-next-btn {
   width: 100%; padding: 18px 24px; border-radius: var(--radius-lg); border: 1px solid var(--glass-stroke);
-  background: #FFFFFF; color: #000000; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: rgba(255,255,255,0.03); color: var(--text-h); font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s var(--ease-smooth); display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.call-next-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(255,255,255,0.1); }
+.call-next-btn.primary-action {
+  background: var(--accent-cyan);
+  color: #000;
+  border: none;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+}
+.call-next-btn.primary-action:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.2);
+  background: #fff;
+}
 .call-next-btn:disabled { background: var(--bg-card); border-color: var(--glass-stroke); color: var(--text-m); cursor: not-allowed; }
 .occupied-hint { margin-top: 12px; text-align: center; font-size: 12px; color: var(--s-session); font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 6px; }
 

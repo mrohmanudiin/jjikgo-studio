@@ -32,14 +32,11 @@ function StatCard({ title, value, icon: Icon, trend, trendLabel, colorClass = 't
 
 export function Dashboard() {
   const { selectedBranch } = useBranch();
-  const [stats, setStats] = useState(null);
-  const [chartData, setChartData] = useState([]);
-  const [recentTx, setRecentTx] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [dailyTarget, setDailyTarget] = useState(1000000);
-  const [monthlyTarget, setMonthlyTarget] = useState(30000000);
-  const [yearlyTarget, setYearlyTarget] = useState(360000000);
-
+  const [compareMode, setCompareMode] = useState(false);
+  const [chartRange, setChartRange] = useState('7d'); // '7d' or '30d'
+  const [topPackagesRange, setTopPackagesRange] = useState('weekly'); // 'daily' or 'weekly'
+  const [topPackages, setTopPackages] = useState([]);
+  
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -48,12 +45,18 @@ export function Dashboard() {
       
       const yearStart = new Date(today.getFullYear(), 0, 1);
       const yearStartStr = format(yearStart, 'yyyy-MM-dd');
+      // For 30d comparison we need at least 60 days
+      const compareStart = format(subDays(today, 60), 'yyyy-MM-dd');
+      const startStr = yearStartStr < compareStart ? yearStartStr : compareStart;
+      
       const todayStr = format(today, 'yyyy-MM-dd');
       const monthStartStr = format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
       const from30 = format(subDays(today, 30), 'yyyy-MM-dd');
 
-      if (selectedBranch) params.append('branch_id', selectedBranch.id);
-      params.append('date_from', yearStartStr);
+      if (selectedBranch && selectedBranch.id !== 'ALL') {
+        params.append('branch_id', selectedBranch.id);
+      }
+      params.append('date_from', startStr);
       params.append('date_to', todayStr);
 
       const [{ data: txAll }, { data: settingsData }] = await Promise.all([
@@ -77,7 +80,7 @@ export function Dashboard() {
       txList.forEach(t => {
         const txDate = format(new Date(t.created_at), 'yyyy-MM-dd');
         const val = Number(t.total) || 0;
-        yearRev += val;
+        if (txDate >= yearStartStr) yearRev += val;
         if (txDate >= monthStartStr) monthRev += val;
         if (txDate >= from30) rev30d += val;
         if (txDate === todayStr) todayRev += val;
@@ -85,7 +88,7 @@ export function Dashboard() {
 
       setStats({
         totalToday: txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).length,
-        totalAllTime: txList.length,
+        totalAllTime: txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') >= yearStartStr).length,
         revenue30d: rev30d,
         todayRevenue: todayRev,
         monthlyRevenue: monthRev,
@@ -93,18 +96,44 @@ export function Dashboard() {
         waiting: txList.filter(t => t.status === 'waiting' && format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).length,
       });
 
-      // Build last 7 days chart
-      const last7 = Array.from({ length: 7 }, (_, i) => {
-        const day = subDays(today, 6 - i);
+      // Build chart data
+      const daysCount = chartRange === '7d' ? 7 : 30;
+      const mainChart = Array.from({ length: daysCount }, (_, i) => {
+        const day = subDays(today, (daysCount - 1) - i);
         const key = format(day, 'yyyy-MM-dd');
         const dayTx = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === key);
-        return {
-          day: format(day, 'EEE'),
+        
+        const item = {
+          day: daysCount === 7 ? format(day, 'EEE') : format(day, 'dd/MM'),
+          date: key,
           transactions: dayTx.length,
           revenue: dayTx.reduce((s, t) => s + (Number(t.total) || 0), 0),
         };
+
+        if (compareMode) {
+          const prevDay = subDays(day, daysCount);
+          const prevKey = format(prevDay, 'yyyy-MM-dd');
+          const prevDayTx = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === prevKey);
+          item.prevTransactions = prevDayTx.length;
+          item.prevRevenue = prevDayTx.reduce((s, t) => s + (Number(t.total) || 0), 0);
+        }
+
+        return item;
       });
-      setChartData(last7);
+      setChartData(mainChart);
+
+      // Top Packages
+      const packageStart = topPackagesRange === 'daily' ? todayStr : format(subDays(today, 7), 'yyyy-MM-dd');
+      const packageTxs = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') >= packageStart);
+      const pkgMap = {};
+      packageTxs.forEach(t => {
+        const pkg = t.package || 'Cafe/Other';
+        if (!pkgMap[pkg]) pkgMap[pkg] = { name: pkg, count: 0, revenue: 0 };
+        pkgMap[pkg].count += 1;
+        pkgMap[pkg].revenue += Number(t.total) || 0;
+      });
+      const sortedPkgs = Object.values(pkgMap).sort((a, b) => b.count - a.count).slice(0, 5);
+      setTopPackages(sortedPkgs);
 
       setRecentTx(txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).slice(0, 10));
     } catch (err) {
@@ -112,7 +141,7 @@ export function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [selectedBranch]);
+  }, [selectedBranch, chartRange, compareMode, topPackagesRange]);
 
   useEffect(() => {
     fetchData();
@@ -267,108 +296,195 @@ export function Dashboard() {
         />
       </div>
 
-      {/* Charts */}
+      {/* Charts & Top Packages */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <Zap className="h-5 w-5 text-amber-500" />
-            <h3 className="text-lg font-bold">Transactions — Last 7 Days</h3>
+        {/* Transactions Chart */}
+        <div className="bg-card/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              <h3 className="text-lg font-bold">Transactions — Last {chartRange === '7d' ? '7' : '30'} Days</h3>
+            </div>
+            <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-xl border">
+              <button 
+                onClick={() => setChartRange('7d')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${chartRange === '7d' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
+              >
+                7D
+              </button>
+              <button 
+                onClick={() => setChartRange('30d')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${chartRange === '30d' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
+              >
+                30D
+              </button>
+              <div className="w-px h-4 bg-border/50 mx-1" />
+              <button 
+                onClick={() => setCompareMode(!compareMode)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${compareMode ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:bg-background/50'}`}
+              >
+                Compare
+              </button>
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={chartData} barSize={32} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.9} />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.5} />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} dy={10} />
-              <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{ borderRadius: '12px', fontSize: 12, border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                formatter={(v) => [v, 'Transactions']}
-                cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
-              />
-              <Bar dataKey="transactions" fill="url(#barGrad)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="flex-1">
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={chartData} barSize={chartRange === '7d' ? 32 : 12} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  </linearGradient>
+                  <linearGradient id="barGradPrev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.1} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.5} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} dy={10} />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', fontSize: 12, border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', backdropFilter: 'blur(8px)' }}
+                  formatter={(v, name) => [v, name === 'transactions' ? 'Current Period' : 'Previous Period']}
+                  cursor={{ fill: 'hsl(var(--muted)/0.5)' }}
+                />
+                <Bar dataKey="transactions" fill="url(#barGrad)" radius={[6, 6, 0, 0]} />
+                {compareMode && <Bar dataKey="prevTransactions" fill="url(#barGradPrev)" radius={[6, 6, 0, 0]} />}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        <div className="bg-card/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-6">
-            <TrendingUp className="h-5 w-5 text-emerald-500" />
-            <h3 className="text-lg font-bold">Revenue — Last 7 Days</h3>
+        {/* Revenue Chart */}
+        <div className="bg-card/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-sm flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-500" />
+              <h3 className="text-lg font-bold">Revenue — Last {chartRange === '7d' ? '7' : '30'} Days</h3>
+            </div>
+            {/* Same controls for revenue, synced */}
           </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.5} />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} dy={10} />
-              <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false}
-                tickFormatter={v => `${(v / 1000).toFixed(0)}K`} />
-              <Tooltip
-                contentStyle={{ borderRadius: '12px', fontSize: 12, border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                formatter={(v) => [`Rp ${v.toLocaleString('id-ID')}`, 'Revenue']}
-              />
-              <Line dataKey="revenue" type="monotone" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: 'hsl(var(--card))' }} activeDot={{ r: 6, strokeWidth: 0, fill: 'hsl(var(--primary))' }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="flex-1">
+            <ResponsiveContainer width="100%" height={240}>
+              <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} opacity={0.5} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} dy={10} />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false}
+                  tickFormatter={v => `Rp ${(v / 1000).toFixed(0)}K`} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '16px', fontSize: 12, border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--card))', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', backdropFilter: 'blur(8px)' }}
+                  formatter={(v, name) => [`Rp ${v.toLocaleString('id-ID')}`, name === 'revenue' ? 'Current Period' : 'Previous Period']}
+                />
+                <Line dataKey="revenue" type="monotone" stroke="hsl(var(--primary))" strokeWidth={4} dot={chartRange === '7d'} activeDot={{ r: 6, strokeWidth: 0, fill: 'hsl(var(--primary))' }} />
+                {compareMode && (
+                  <Line dataKey="prevRevenue" type="monotone" stroke="hsl(var(--muted-foreground))" strokeWidth={2} strokeDasharray="5 5" dot={false} opacity={0.5} />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </div>
 
-      {/* Recent Transactions */}
-      <div className="bg-card/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-sm">
-        <div className="flex items-center gap-2 mb-6">
-          <CalendarDays className="h-5 w-5 text-blue-500" />
-          <h3 className="text-lg font-bold">Recent Transactions</h3>
+        {/* Top Packages Widget */}
+        <div className="bg-card/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-bold">Top Packages & Best Sellers</h3>
+            </div>
+            <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-xl border">
+              <button 
+                onClick={() => setTopPackagesRange('daily')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${topPackagesRange === 'daily' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
+              >
+                Today
+              </button>
+              <button 
+                onClick={() => setTopPackagesRange('weekly')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${topPackagesRange === 'weekly' ? 'bg-background shadow-sm text-primary' : 'text-muted-foreground'}`}
+              >
+                Weekly
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {topPackages.map((pkg, idx) => (
+              <div key={pkg.name} className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs ${
+                    idx === 0 ? 'bg-amber-500/20 text-amber-600' :
+                    idx === 1 ? 'bg-slate-300/20 text-slate-500' :
+                    idx === 2 ? 'bg-orange-500/20 text-orange-600' :
+                    'bg-muted text-muted-foreground'
+                  }`}>
+                    #{idx + 1}
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm group-hover:text-primary transition-colors">{pkg.name}</div>
+                    <div className="text-xs text-muted-foreground">{pkg.count} sales</div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-sm text-foreground">Rp {pkg.revenue.toLocaleString('id-ID')}</div>
+                  <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Revenue</div>
+                </div>
+              </div>
+            ))}
+            {topPackages.length === 0 && (
+              <div className="py-10 text-center text-muted-foreground">No data for this period.</div>
+            )}
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-muted-foreground uppercase tracking-wider border-b">
-                <th className="pb-3 text-left font-semibold">Invoice</th>
-                <th className="pb-3 text-left font-semibold">Customer</th>
-                <th className="pb-3 text-left font-semibold">Theme</th>
-                {!selectedBranch && <th className="pb-3 text-left font-semibold">Branch</th>}
-                <th className="pb-3 text-right font-semibold">Total</th>
-                <th className="pb-3 text-left font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {recentTx.map(tx => (
-                <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="py-3 font-mono text-xs text-muted-foreground">{tx.invoice_number}</td>
-                  <td className="py-3 font-medium">{tx.customer_name}</td>
-                  <td className="py-3 text-muted-foreground">{tx.theme || 'Cafe'}</td>
-                  {!selectedBranch && (
-                    <td className="py-3 text-muted-foreground">{tx.branch?.name}</td>
-                  )}
-                  <td className="py-4 text-right font-bold text-foreground">
-                    Rp {Number(tx.total).toLocaleString('id-ID')}
-                  </td>
-                  <td className="py-4 text-right">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${
-                      tx.status === 'done' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
-                      tx.status === 'waiting' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
-                      'bg-blue-500/10 text-blue-600 border border-blue-500/20'
-                    }`}>
-                      {tx.status?.replace('_', ' ')}
-                    </span>
-                  </td>
+
+        {/* Recent Transactions (Moved here or kept below) */}
+        <div className="bg-card/50 backdrop-blur-md border border-white/10 rounded-3xl p-6 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-blue-500" />
+              <h3 className="text-lg font-bold">Recent Transactions</h3>
+            </div>
+            <p className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-lg">Today</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[10px] text-muted-foreground uppercase tracking-widest border-b border-white/5">
+                  <th className="pb-3 text-left font-bold">Invoice</th>
+                  <th className="pb-3 text-left font-bold">Customer</th>
+                  {(!selectedBranch || selectedBranch.id === 'ALL') && <th className="pb-3 text-left font-bold">Branch</th>}
+                  <th className="pb-3 text-right font-bold">Total</th>
                 </tr>
-              ))}
-              {recentTx.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center">
-                    <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
-                      <CalendarDays className="h-6 w-6 text-muted-foreground/50" />
-                    </div>
-                    No transactions yet today.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {recentTx.map(tx => (
+                  <tr key={tx.id} className="hover:bg-white/5 transition-colors group">
+                    <td className="py-3 font-mono text-[10px] text-muted-foreground">{tx.invoice_number}</td>
+                    <td className="py-3 pr-2">
+                       <div className="font-bold text-xs truncate max-w-[120px]">{tx.customer_name}</div>
+                       <div className="text-[10px] text-muted-foreground truncate max-w-[120px]">{tx.theme || 'Cafe'} {tx.package ? `· ${tx.package}` : ''}</div>
+                    </td>
+                    {(!selectedBranch || selectedBranch.id === 'ALL') && (
+                      <td className="py-3 text-[10px] font-medium text-muted-foreground">{tx.branch?.name}</td>
+                    )}
+                    <td className="py-3 text-right">
+                      <div className="font-bold text-xs text-primary">Rp {Number(tx.total).toLocaleString('id-ID')}</div>
+                      <div className={`text-[9px] font-black uppercase text-right ${
+                        tx.status === 'done' ? 'text-emerald-500' :
+                        tx.status === 'waiting' ? 'text-amber-500' : 'text-blue-500'
+                      }`}>{tx.status}</div>
+                    </td>
+                  </tr>
+                ))}
+                {recentTx.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-muted-foreground">
+                      No transactions yet today.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

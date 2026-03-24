@@ -6,7 +6,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
-    TrendingUp, ShoppingBag, Clock, Star, Plus, ArrowRight, Package, Layout, Coffee, Eye, EyeOff, Activity, Zap
+    TrendingUp, TrendingDown, ShoppingBag, Clock, Star, Plus, ArrowRight, Package, Layout, Coffee, Eye, EyeOff, Activity, Zap, Users, ListOrdered, LogOut, DollarSign, AlertCircle
 } from 'lucide-react';
 
 // ─── Summary Card ─────────────────────────────────────────────────────────────
@@ -107,10 +107,33 @@ export default function Dashboard() {
     const last5 = safeTx.slice(0, 5);
     const chartData = useMemo(() => buildChartData(safeTx), [transactions]);
 
+    const currentShift = useStore((s) => s.currentShift);
+
     const displayCurrency = (val) => showSales ? formatCurrency(val) : 'Rp ••••••';
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }} className="animate-fadeIn">
+
+            {/* Shift Alert (if closed) */}
+            {!currentShift && (
+                <div style={{
+                    padding: '16px 24px', borderRadius: 16, background: '#FFF1F0', border: '1px solid #FF3B3020',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#FF3B30' }}>
+                        <AlertCircle size={20} />
+                        <div>
+                            <div style={{ fontWeight: 800, fontSize: 14 }}>Register is Closed</div>
+                            <div style={{ fontSize: 12, opacity: 0.8 }}>Start a shift before processing any transactions.</div>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => navigate('/shift')}
+                        className="btn" 
+                        style={{ padding: '8px 16px', background: '#FF3B30', color: 'white', fontSize: 13, fontWeight: 700 }}
+                    >Open Register</button>
+                </div>
+            )}
 
             {/* Header / Actions Banner */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -118,20 +141,37 @@ export default function Dashboard() {
                     <h1 style={{ fontSize: 28, fontWeight: 800, color: '#111', letterSpacing: '-0.02em', marginBottom: 4 }}>Overview</h1>
                     <p style={{ color: '#8E8E93', fontSize: 14, fontWeight: 500 }}>Monitor your studio operations and live queues.</p>
                 </div>
-                <button
-                    className="btn"
-                    style={{
-                        padding: '12px 24px', fontSize: 15, fontWeight: 700,
-                        background: '#111', color: 'white', border: 'none',
-                        borderRadius: 12, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        boxShadow: '0 8px 24px rgba(17,17,17,0.2)'
-                    }}
-                    onClick={() => navigate('/transaction')}
-                >
-                    <Plus size={18} />
-                    New Transaction
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button
+                        className="btn"
+                        style={{
+                            padding: '12px 20px', fontSize: 15, fontWeight: 700,
+                            background: currentShift ? '#F2F2F7' : 'white', 
+                            color: currentShift ? '#111' : '#8E8E93', 
+                            border: '1.5px solid #E5E5EA',
+                            borderRadius: 12, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 8
+                        }}
+                        onClick={() => navigate('/shift')}
+                    >
+                        <DollarSign size={18} color={currentShift ? '#34C759' : '#8E8E93'} />
+                        {currentShift ? 'Shift Active' : 'Shift Inactive'}
+                    </button>
+                    <button
+                        className="btn"
+                        style={{
+                            padding: '12px 24px', fontSize: 15, fontWeight: 700,
+                            background: '#111', color: 'white', border: 'none',
+                            borderRadius: 12, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            boxShadow: '0 8px 24px rgba(17,17,17,0.2)'
+                        }}
+                        onClick={() => navigate('/transaction')}
+                    >
+                        <Plus size={18} />
+                        New Transaction
+                    </button>
+                </div>
             </div>
 
             {/* Summary Cards */}

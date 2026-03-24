@@ -96,3 +96,13 @@ export const sendToPrint = async (queueId) => {
     const res = await api.post('/queue/send-to-print', { queue_id: queueId });
     return res.data;
 };
+
+export const skipQueue = async (queueId) => {
+    const res = await api.post('/queue/skip', { queue_id: queueId });
+    return res.data;
+};
+
+export const updateNotes = async (queueId, note) => {
+    const res = await api.patch('/queue/note', { queue_id: queueId, note });
+    return res.data;
+};

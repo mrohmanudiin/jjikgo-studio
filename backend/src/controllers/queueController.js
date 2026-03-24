@@ -73,7 +73,7 @@ exports.callNextQueue = async (req, res) => {
     }
 
     const [updatedQueue] = await db.update(queues)
-      .set({ status: 'called' })
+      .set({ status: 'called', updatedAt: new Date() })
       .where(eq(queues.id, nextQueue.id))
       .returning();
 
@@ -108,7 +108,7 @@ exports.startSession = async (req, res) => {
     if (booth_id) updateData.boothId = parseInt(booth_id);
 
     const [updatedQueue] = await db.update(queues)
-      .set(updateData)
+      .set({ ...updateData, updatedAt: new Date() })
       .where(eq(queues.id, parseInt(queue_id)))
       .returning();
 
@@ -147,7 +147,7 @@ exports.finishSession = async (req, res) => {
     const { queue_id, booth_id } = req.body;
 
     const [updatedQueue] = await db.update(queues)
-      .set({ status: 'done' })
+      .set({ status: 'done', updatedAt: new Date() })
       .where(eq(queues.id, parseInt(queue_id)))
       .returning();
 
@@ -185,7 +185,7 @@ exports.sendToPrint = async (req, res) => {
     const { queue_id } = req.body;
 
     const [updatedQueue] = await db.update(queues)
-      .set({ status: 'print_requested' })
+      .set({ status: 'print_requested', updatedAt: new Date() })
       .where(eq(queues.id, parseInt(queue_id)))
       .returning();
 
@@ -257,5 +257,67 @@ exports.trackQueue = async (req, res) => {
   } catch (error) {
     console.error('trackQueue error:', error);
     res.status(500).json({ error: 'Failed to track queue' });
+  }
+};
+
+/**
+ * POST /api/queue/skip
+ * Access: STAFF
+ */
+exports.skipQueue = async (req, res) => {
+  try {
+    const { queue_id } = req.body;
+
+    // Skip moves it to 'waiting' with an updated timestamp to put it at the end of the queue
+    // OR just marks as 'cancelled'. Let's do 'cancelled' for now to match "no-show" requirement.
+    const [updatedQueue] = await db.update(queues)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(queues.id, parseInt(queue_id)))
+      .returning();
+
+    await db.update(transactions)
+      .set({ status: 'cancelled' })
+      .where(eq(transactions.id, updatedQueue.transactionId));
+
+    const tx = await db.query.transactions.findFirst({
+      where: eq(transactions.id, updatedQueue.transactionId),
+      columns: { branchId: true },
+    });
+
+    const io = req.app.get('io');
+    emitQueueUpdate(io, tx?.branchId, 'queue_skipped', updatedQueue);
+
+    res.json(updatedQueue);
+  } catch (error) {
+    console.error('skipQueue error:', error);
+    res.status(500).json({ error: 'Failed to skip queue' });
+  }
+};
+
+/**
+ * PATCH /api/queue/note
+ * Access: STAFF
+ */
+exports.updateQueueNotes = async (req, res) => {
+  try {
+    const { queue_id, note } = req.body;
+
+    const [updatedQueue] = await db.update(queues)
+      .set({ note, updatedAt: new Date() })
+      .where(eq(queues.id, parseInt(queue_id)))
+      .returning();
+
+    const tx = await db.query.transactions.findFirst({
+      where: eq(transactions.id, updatedQueue.transactionId),
+      columns: { branchId: true },
+    });
+
+    const io = req.app.get('io');
+    emitQueueUpdate(io, tx?.branchId, 'queue_noted', updatedQueue);
+
+    res.json(updatedQueue);
+  } catch (error) {
+    console.error('updateQueueNotes error:', error);
+    res.status(500).json({ error: 'Failed to update note' });
   }
 };

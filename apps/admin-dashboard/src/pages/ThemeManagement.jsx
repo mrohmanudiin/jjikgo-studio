@@ -25,9 +25,13 @@ export function ThemeManagement() {
         if (!selectedBranch) return;
         setLoading(true);
         try {
+            const params = new URLSearchParams();
+            if (selectedBranch && selectedBranch.id !== 'ALL') {
+                params.append('branch_id', selectedBranch.id);
+            }
             const [themesRes, txRes] = await Promise.all([
-                api.get(`/studio/themes?branch_id=${selectedBranch.id}`),
-                api.get(`/transactions?branch_id=${selectedBranch.id}`)
+                api.get(`/studio/themes?${params.toString()}`),
+                api.get(`/transactions?${params.toString()}`)
             ]);
 
             const allTxs = txRes.data;

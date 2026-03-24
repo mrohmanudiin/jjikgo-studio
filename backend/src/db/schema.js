@@ -155,7 +155,9 @@ const queues = pgTable('Queue', {
   boothId: integer('booth_id').references(() => booths.id),
   queueNumber: integer('queue_number').notNull(),
   status: text('status').default('waiting').notNull(),
+  note: text('note'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // ── Settings ───────────────────────────────────────────

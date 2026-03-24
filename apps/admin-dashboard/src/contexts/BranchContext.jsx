@@ -18,13 +18,18 @@ export function BranchProvider({ children }) {
   const fetchBranches = async () => {
     try {
       const { data } = await api.get('/branches');
-      setBranches(data);
+      
+      const availableBranches = data.length > 1 
+        ? [{ id: 'ALL', name: 'All Branches' }, ...data]
+        : data;
+        
+      setBranches(availableBranches);
       
       // If no branch selected or selected branch doesn't exist anymore, pick first entry
-      if (data.length > 0) {
+      if (availableBranches.length > 0) {
         let current = selectedBranch;
-        if (!current || !data.find(b => b.id === current.id)) {
-          current = data[0];
+        if (!current || (current.id !== 'ALL' && !data.find(b => b.id === current.id))) {
+          current = availableBranches[0];
           setSelectedBranch(current);
           localStorage.setItem('jjikgo-selected-branch', JSON.stringify(current));
         }
@@ -37,6 +42,13 @@ export function BranchProvider({ children }) {
   };
 
   const selectBranch = (branchId) => {
+    if (branchId === 'ALL') {
+      const allBranch = { id: 'ALL', name: 'All Branches' };
+      setSelectedBranch(allBranch);
+      localStorage.setItem('jjikgo-selected-branch', JSON.stringify(allBranch));
+      return;
+    }
+    
     // Only allow selecting valid branches
     const branch = branches.find(b => b.id === branchId);
     if (branch) {

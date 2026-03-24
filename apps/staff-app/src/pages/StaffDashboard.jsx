@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { fetchQueue, callNext, startSession, sendToPrint } from '../utils/api';
+import { fetchQueue, callNext, startSession, sendToPrint, skipQueue, updateNotes } from '../utils/api';
 import { formatWaitingTime, getStatusLabel } from '../utils/format';
 
 // ─── Status Flow Config ────────────────────────────────────────────────────────
@@ -25,6 +25,25 @@ function getStatusColors(status) {
     }
 }
 
+// ─── Helper: normalize queue object (backend uses camelCase) ──────────────────
+function normalizeQueue(q) {
+    const pkg = q.transaction?.package || q.package || {};
+    return {
+        ...q,
+        queue_number: q.queue_number ?? q.queueNumber ?? 0,
+        created_at:   q.created_at   ?? q.createdAt,
+        session_start: q.session_start ?? q.sessionStart,
+        theme_id:     q.theme_id     ?? q.themeId,
+        duration:     pkg.duration   ?? q.package_duration ?? 15,
+        transaction: q.transaction ? {
+            ...q.transaction,
+            customer_name: q.transaction.customer_name ?? q.transaction.customerName ?? 'Walk-in',
+            people_count:  q.transaction.people_count  ?? q.transaction.peopleCount  ?? 1,
+            package_name:  q.transaction.packageName   ?? q.transaction.package_name  ?? (q.transaction.items?.[0]?.name) ?? '—',
+        } : null,
+    };
+}
+
 // ─── SVG Icons ─────────────────────────────────────────────────────────────────
 const Icons = {
     Camera: () => (
@@ -48,8 +67,8 @@ const Icons = {
             <rect x="6" y="14" width="12" height="8"/>
         </svg>
     ),
-    Bell: () => (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    Bell: ({ size = 16, className }) => (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
@@ -77,6 +96,32 @@ const Icons = {
             <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
         </svg>
     ),
+    Package: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+    ),
+    Clock: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+    ),
+    CheckCircle: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+    ),
+    SkipForward: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="5 4 15 12 5 20 5 4"/>
+            <line x1="19" y1="5" x2="19" y2="19"/>
+        </svg>
+    ),
 };
 
 // ─── Live Clock ────────────────────────────────────────────────────────────────
@@ -90,6 +135,60 @@ function LiveClock() {
         <span className="topbar-time">
             {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </span>
+    );
+}
+
+// ─── Session Elapsed Timer ────────────────────────────────────────────────────
+function SessionTimer({ startedAt, duration = 15 }) {
+    const [timeLeft, setTimeLeft] = useState('');
+    const [isLow, setIsLow] = useState(false);
+    const [isOver, setIsOver] = useState(false);
+
+    useEffect(() => {
+        if (!startedAt) return;
+        const tick = () => {
+            const start = new Date(startedAt);
+            if (isNaN(start.getTime())) return;
+            
+            const durationMs = duration * 60 * 1000;
+            const end = start.getTime() + durationMs;
+            const remaining = end - Date.now();
+            
+            if (remaining <= 0) {
+                const overMs = Math.abs(remaining);
+                const om = Math.floor(overMs / 60000);
+                const os = Math.floor((overMs % 60000) / 1000);
+                setTimeLeft(`-${String(om).padStart(2, '0')}:${String(os).padStart(2, '0')}`);
+                setIsOver(true);
+                setIsLow(true);
+            } else {
+                const rm = Math.floor(remaining / 60000);
+                const rs = Math.floor((remaining % 60000) / 1000);
+                setTimeLeft(`${String(rm).padStart(2, '0')}:${String(rs).padStart(2, '0')}`);
+                setIsOver(false);
+                setIsLow(remaining < 2 * 60000); // Low if < 2 mins
+            }
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [startedAt, duration]);
+
+    if (!timeLeft) return null;
+    return (
+        <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '5px 11px', borderRadius: 8,
+            background: isOver ? 'rgba(239,68,68,0.2)' : (isLow ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.1)'),
+            color: isOver ? '#F87171' : (isLow ? '#F59E0B' : '#10B981'),
+            fontSize: 13, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
+            border: `1px solid ${isOver ? 'rgba(239,68,68,0.3)' : 'transparent'}`,
+            boxShadow: isOver ? '0 0 12px rgba(239,68,68,0.2)' : 'none'
+        }}>
+            <Icons.Clock />
+            {timeLeft}
+            {isOver && <span style={{ fontSize: 9, marginLeft: 2 }}>OVERTIME</span>}
+        </div>
     );
 }
 
@@ -118,11 +217,67 @@ function StatusFlow({ currentStatus }) {
     );
 }
 
+// ─── Confirm Dialog ────────────────────────────────────────────────────────────
+function ConfirmDialog({ title, message, onConfirm, onCancel, confirmLabel = 'Confirm', danger = false }) {
+    return (
+        <div style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+        }}>
+            <div style={{
+                background: 'var(--card, #1a1a2e)', borderRadius: 18,
+                padding: '28px 28px 22px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                maxWidth: 380, width: '90%',
+                display: 'flex', flexDirection: 'column', gap: 16,
+            }}>
+                <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text, #fff)', letterSpacing: '-0.01em' }}>{title}</div>
+                <div style={{ fontSize: 14, color: 'var(--text-s, #aaa)', lineHeight: 1.5 }}>{message}</div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                    <button
+                        onClick={onCancel}
+                        style={{
+                            flex: 1, padding: '12px 0', borderRadius: 10,
+                            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                            color: 'var(--text-s, #aaa)', fontSize: 14, fontWeight: 600,
+                            cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        style={{
+                            flex: 1, padding: '12px 0', borderRadius: 10,
+                            background: danger ? '#EF4444' : 'var(--accent-cyan, #00D1FF)',
+                            border: 'none',
+                            color: danger ? '#fff' : '#000',
+                            fontSize: 14, fontWeight: 800,
+                            cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                    >
+                        {confirmLabel}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Queue Card ────────────────────────────────────────────────────────────────
-function QueueCard({ queue, theme, isActive }) {
-    const sc = getStatusColors(queue.status);
+function QueueCard({ queue, theme, isActive, index = 0 }) {
+    const q = normalizeQueue(queue);
+    const sc = getStatusColors(q.status);
     const prefix = theme.prefix || 'T';
-    const queueLabel = `${prefix}${String(queue.queue_number).padStart(2, '0')}`;
+    
+    // Fix for "ALBUMundefined": ensures String conversion doesn't result in "undefined"
+    const displayNum = (q.queue_number !== undefined && q.queue_number !== null) ? q.queue_number : 0;
+    const queueLabel = `${prefix}${String(displayNum).padStart(2, '0')}`;
+    const packageName = q.transaction?.package_name || q.transaction?.packageName || 'Standard Package';
+
+    const estWaitMins = (index + 1) * 10;
 
     return (
         <div className={`queue-card animate-slideUp ${isActive ? 'is-active' : ''}`}>
@@ -134,64 +289,115 @@ function QueueCard({ queue, theme, isActive }) {
             </div>
 
             <div className="queue-info">
-                <div className="queue-customer">
-                    {queue.transaction?.customer_name || 'Walk-in'}
+                <div className="flex items-center justify-between">
+                    <div className="queue-customer">
+                        {q.transaction?.customer_name || 'Walk-in'}
+                    </div>
                 </div>
-                <div className="queue-meta">
+                <div style={{ fontSize: 11, color: 'var(--text-s)', opacity: 0.85, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Icons.Package />
+                    <span className="truncate max-w-[140px]">{packageName}</span>
+                </div>
+                <div className="queue-meta" style={{ marginTop: 6 }}>
                     <div className="queue-pax">
                         <Icons.Users />
-                        {queue.transaction?.people_count || 1} pax
+                        {q.transaction?.people_count || 1} pax
                     </div>
-                    <div
-                        className="status-pill"
-                        style={{ background: sc.bg, color: sc.text }}
-                    >
-                        <span className="status-pill-dot" style={{ background: sc.text }} />
-                        {getStatusLabel(queue.status)}
-                    </div>
+                    {q.status === 'waiting' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#F5A623', fontWeight: 600 }}>
+                            <Icons.Clock />
+                            Est. {estWaitMins}m
+                        </div>
+                    )}
                 </div>
             </div>
 
             <div className="queue-wait-time">
-                {formatWaitingTime(queue.created_at)}
+                <div style={{ opacity: 0.6 }}>Waited</div>
+                {formatWaitingTime(q.created_at)}
             </div>
         </div>
     );
 }
 
 // ─── Session Panel ─────────────────────────────────────────────────────────────
-function SessionPanel({ activeQueue, theme, onAction, busy }) {
+function SessionPanel({ activeQueue, theme, onAction, onSkip, onNote, busy, waitingCount }) {
+    const [note, setNote] = useState('');
+    const [isSavingNote, setIsSavingNote] = useState(false);
+
+    useEffect(() => {
+        setNote(activeQueue?.note || '');
+    }, [activeQueue?.id, activeQueue?.note]);
+
+    const handleNoteSave = async () => {
+        if (!activeQueue) return;
+        setIsSavingNote(true);
+        try {
+            await onNote(activeQueue.id, note);
+        } finally {
+            setIsSavingNote(false);
+        }
+    };
+
     if (!activeQueue) {
         return (
             <div className="session-panel">
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div
-                        className="section-label"
-                        style={{ marginBottom: 0 }}
-                    >
+                    <div className="section-label" style={{ marginBottom: 0 }}>
                         Active Session
                         <div className="section-label-line" />
                     </div>
-                    <div className="session-empty" style={{ flex: 1 }}>
-                        <div className="session-empty-icon">
-                            <Icons.Camera />
+                    <div className="session-empty" style={{ flex: 1, border: 'none', background: 'transparent', padding: '20px 0' }}>
+                        <div className="session-empty-icon" style={{ background: 'rgba(0,209,255,0.05)', borderColor: 'rgba(0,209,255,0.2)' }}>
+                            <Icons.Camera style={{ color: 'var(--accent-cyan)' }} />
                         </div>
                         <div>
-                            <div className="session-empty-title">No active session</div>
-                            <div className="session-empty-sub">
-                                Call the next customer<br />to begin a session.
+                            <div className="session-empty-title">Ready for Next Session</div>
+                            <div className="session-empty-sub" style={{ maxWidth: 300, margin: '0 auto' }}>
+                                {waitingCount > 0
+                                    ? `There are ${waitingCount} people waiting in the queue. Press "Call Next" to continue.`
+                                    : 'Booth is idle. Waiting for new check-ins.'
+                                }
                             </div>
                         </div>
                     </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="panel-card" style={{ padding: 16, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-stroke)' }}>
+                            <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-m)', fontWeight: 800, letterSpacing: '0.05em' }}>Current Strategy</div>
+                            <div style={{ fontSize: 14, color: 'var(--text-h)', fontWeight: 600, marginTop: 4 }}>Fast Turnaround</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-s)', marginTop: 2 }}>Target: 15m session</div>
+                        </div>
+                        <div className="panel-card" style={{ padding: 16, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-stroke)' }}>
+                            <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-m)', fontWeight: 800, letterSpacing: '0.05em' }}>Staff Reminder</div>
+                            <div style={{ fontSize: 14, color: 'var(--accent-amber)', fontWeight: 600, marginTop: 4 }}>Clean Lens</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-s)', marginTop: 2 }}>Keep glass fingerprint-free</div>
+                        </div>
+                    </div>
+
+                    {waitingCount > 0 && (
+                        <div style={{
+                            background: 'rgba(0,209,255,0.08)', border: '1px solid rgba(0,209,255,0.2)',
+                            borderRadius: 12, padding: '12px 14px',
+                            color: 'var(--accent-cyan)', fontSize: 13, fontWeight: 600,
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            animation: 'pulse-subtle 3s infinite'
+                        }}>
+                            ✨ {waitingCount} {waitingCount === 1 ? 'customer is' : 'customers are'} waiting for this booth
+                        </div>
+                    )}
                 </div>
             </div>
         );
     }
 
-    const status = activeQueue.status?.toLowerCase();
-    const customerName = activeQueue.transaction?.customer_name || 'Walk-in';
-    const queueLabel = `${theme.prefix || 'T'}${String(activeQueue.queue_number).padStart(2, '0')}`;
-    const peopleCount = activeQueue.transaction?.people_count || 1;
+    const q = normalizeQueue(activeQueue);
+    const status = q.status?.toLowerCase();
+    const customerName = q.transaction?.customer_name || 'Walk-in';
+    const displayNum = (q.queue_number !== undefined && q.queue_number !== null) ? q.queue_number : 0;
+    const queueLabel = `${theme.prefix || 'T'}${String(displayNum).padStart(2, '0')}`;
+    const peopleCount = q.transaction?.people_count || 1;
+    const packageName = q.transaction?.package_name || q.transaction?.packageName || '—';
 
     return (
         <div className="session-panel">
@@ -204,7 +410,12 @@ function SessionPanel({ activeQueue, theme, onAction, busy }) {
             {/* Customer Card */}
             <div className="session-customer-card animate-slideUp">
                 <div className="session-customer-card-glow" />
-                <div className="session-queue-number">{queueLabel}</div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                    <div className="session-queue-number">{queueLabel}</div>
+                    {status === 'in_session' && (
+                        <SessionTimer startedAt={q.session_start || q.created_at} duration={q.duration} />
+                    )}
+                </div>
                 <div className="session-customer-name">{customerName}</div>
 
                 <div className="session-tags-grid">
@@ -220,6 +431,13 @@ function SessionPanel({ activeQueue, theme, onAction, busy }) {
                         <span className="session-tag-value">
                             <Icons.Palette />
                             {theme.name}
+                        </span>
+                    </div>
+                    <div className="session-tag" style={{ gridColumn: 'span 2' }}>
+                        <span className="session-tag-label">Package</span>
+                        <span className="session-tag-value">
+                            <Icons.Package />
+                            {packageName}
                         </span>
                     </div>
                 </div>
@@ -251,6 +469,23 @@ function SessionPanel({ activeQueue, theme, onAction, busy }) {
                                 {busy === 'start' ? <div className="spinner" style={{ borderTopColor: '#000' }} /> : <Icons.Camera />}
                                 Begin Session
                             </button>
+                            <button
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '12px 16px', borderRadius: 12,
+                                    background: 'rgba(255,255,255,0.04)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    color: 'var(--text-s)', cursor: 'pointer',
+                                    fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                                    transition: 'all 0.15s ease',
+                                }}
+                                disabled={!!busy}
+                                onClick={() => onSkip(q.id)}
+                                title="Skip this customer (no-show)"
+                            >
+                                <Icons.SkipForward />
+                                Skip (No-show)
+                            </button>
                             <p className="action-hint">Customer has arrived at the booth</p>
                         </>
                     )}
@@ -267,6 +502,51 @@ function SessionPanel({ activeQueue, theme, onAction, busy }) {
                             <p className="action-hint">Session complete, transfer to print station</p>
                         </>
                     )}
+                    {status === 'print_requested' && (
+                        <div style={{
+                            padding: '14px 16px', borderRadius: 12,
+                            background: 'rgba(236,72,153,0.08)',
+                            border: '1px solid rgba(236,72,153,0.2)',
+                            color: '#EC4899', fontSize: 13, fontWeight: 600,
+                            display: 'flex', alignItems: 'center', gap: 8,
+                        }}>
+                            🖨️ Awaiting print confirmation from cashier…
+                        </div>
+                    )}
+                    
+                    <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="section-label" style={{ fontSize: 11, marginBottom: 8 }}>
+                            Staff Notes
+                            <div className="section-label-line" />
+                        </div>
+                        <textarea
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="Add session notes here (e.g. backdrop request)..."
+                            style={{
+                                width: '100%', minHeight: 80, borderRadius: 12,
+                                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+                                color: 'var(--text)', fontSize: 13, padding: 12,
+                                fontFamily: 'inherit', resize: 'none',
+                                marginBottom: 10, outline: 'none'
+                            }}
+                        />
+                        <button
+                            onClick={handleNoteSave}
+                            disabled={isSavingNote || note === (activeQueue?.note || '')}
+                            style={{
+                                width: '100%', padding: '10px 0', borderRadius: 10,
+                                background: note === (activeQueue?.note || '') ? 'rgba(255,255,255,0.05)' : 'rgba(0,209,255,0.15)',
+                                border: '1px solid rgba(0,209,255,0.2)',
+                                color: note === (activeQueue?.note || '') ? 'rgba(255,255,255,0.3)' : 'var(--accent-cyan)',
+                                fontSize: 13, fontWeight: 800,
+                                cursor: note === (activeQueue?.note || '') ? 'default' : 'pointer',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            {isSavingNote ? 'Saving...' : 'Update Note'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -277,6 +557,7 @@ function SessionPanel({ activeQueue, theme, onAction, busy }) {
 export default function StaffDashboard({ theme, queueData, loading, refresh, onChangeBooth, onLogout }) {
     const [busy, setBusy] = useState(null);
     const [toast, setToast] = useState('');
+    const [confirmDialog, setConfirmDialog] = useState(null);
     const toastTimer = useRef(null);
 
     // Read branch name from localStorage for display
@@ -288,7 +569,8 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
         return null;
     })();
 
-    const myQueues = (queueData || {})[theme.name] || [];
+    const rawQueues = (queueData || {})[theme.name] || [];
+    const myQueues = rawQueues.map(normalizeQueue);
     const activeQueue = myQueues.find(q => ['called', 'in_session'].includes(q.status?.toLowerCase())) || null;
     const waitingQueues = myQueues.filter(q => q.status?.toLowerCase() === 'waiting');
     const doneToday = myQueues.filter(q => q.status?.toLowerCase() === 'done').length;
@@ -299,30 +581,82 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
         toastTimer.current = setTimeout(() => setToast(''), 3000);
     };
 
-    const handleCallNext = async () => {
+    const handleCallNext = () => {
         if (busy || waitingQueues.length === 0) return;
+        setConfirmDialog({
+            type: 'callNext',
+            title: 'Call Next Customer',
+            message: `Call the next customer in queue for "${theme.name}"?`,
+            confirmLabel: '📣 Call Now',
+        });
+    };
+
+    const handleSkip = (queueId) => {
+        setConfirmDialog({
+            type: 'skip',
+            queueId,
+            title: 'Skip Customer',
+            message: 'Mark this customer as a no-show and advance the queue?',
+            confirmLabel: 'Skip Customer',
+            danger: true,
+        });
+    };
+
+    const executeCallNext = async () => {
         setBusy('call');
+        setConfirmDialog(null);
         try {
             await callNext(theme.id);
             await refresh();
-            showToast('Next customer called');
+            showToast('✅ Next customer called!');
         } catch {
-            showToast('Failed to call next customer');
+            showToast('❌ Failed to call next customer');
         } finally {
             setBusy(null);
         }
     };
 
+    const executeSkip = async () => {
+        setBusy('skip');
+        const qId = confirmDialog.queueId;
+        setConfirmDialog(null);
+        try {
+            await skipQueue(qId);
+            await refresh();
+            showToast('⏭️ Customer skipped');
+        } catch {
+            showToast('Failed to skip customer');
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    const handleNote = async (id, text) => {
+        try {
+            await updateNotes(id, text);
+            await refresh();
+            showToast('📝 Note saved');
+        } catch {
+            showToast('Failed to save note');
+        }
+    };
+
     const handleAction = async (action) => {
         if (!activeQueue || busy) return;
+        if (action === 'print') {
+            setConfirmDialog({
+                type: 'print',
+                title: 'Send to Print',
+                message: 'Transfer this session to the print station? Cashier will be notified.',
+                confirmLabel: '🖨️ Send to Print',
+            });
+            return;
+        }
         setBusy(action);
         try {
             if (action === 'start') {
                 await startSession(activeQueue.id, null);
-                showToast('Session started');
-            } else if (action === 'print') {
-                await sendToPrint(activeQueue.id);
-                showToast('Transferred to print station');
+                showToast('📸 Session started!');
             }
             await refresh();
         } catch {
@@ -331,6 +665,30 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
             setBusy(null);
         }
     };
+
+    const executePrint = async () => {
+        if (!activeQueue) return;
+        setBusy('print');
+        setConfirmDialog(null);
+        try {
+            await sendToPrint(activeQueue.id);
+            showToast('🖨️ Transferred to print station');
+            await refresh();
+        } catch {
+            showToast('Failed to send print request');
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    const handleConfirmDialog = () => {
+        if (!confirmDialog) return;
+        if (confirmDialog.type === 'callNext') executeCallNext();
+        else if (confirmDialog.type === 'skip') executeSkip();
+        else if (confirmDialog.type === 'print') executePrint();
+    };
+
+    const canCallNext = !busy && waitingQueues.length > 0 && !activeQueue;
 
     return (
         <div className="animate-fadeIn">
@@ -403,23 +761,47 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                         </div>
                     </div>
 
-                    {/* Call Next */}
+                    {/* Call Next — Prominent Primary Button */}
                     <div className="panel-card">
                         <button
-                            className="call-next-btn"
-                            disabled={!!busy || waitingQueues.length === 0 || !!activeQueue}
+                            className="call-next-btn primary-action"
+                            disabled={!canCallNext}
                             onClick={handleCallNext}
+                            style={canCallNext ? {
+                                background: 'linear-gradient(135deg, var(--accent-cyan, #00D1FF), #0099CC)',
+                                boxShadow: '0 4px 24px rgba(0,209,255,0.35)',
+                            } : {}}
                         >
                             {busy === 'call' ? (
                                 <><div className="spinner" /> Calling...</>
                             ) : (
-                                <><Icons.Bell /> Call Next Customer</>
+                                <>
+                                    <Icons.Bell size={18} />
+                                    Call Next Customer
+                                    {waitingCount > 0 && (
+                                        <span style={{
+                                            background: 'rgba(0,0,0,0.2)',
+                                            borderRadius: 20, padding: '2px 8px',
+                                            fontSize: 12, fontWeight: 700, marginLeft: 4,
+                                        }}>
+                                            {waitingCount}
+                                        </span>
+                                    )}
+                                </>
                             )}
                         </button>
                         {activeQueue && (
                             <div className="occupied-hint">
                                 <Icons.Activity />
                                 Session in progress — complete it first
+                            </div>
+                        )}
+                        {!activeQueue && waitingQueues.length === 0 && !busy && (
+                            <div style={{
+                                fontSize: 12, color: 'var(--text-s)', textAlign: 'center',
+                                opacity: 0.6, paddingTop: 6,
+                            }}>
+                                No customers in queue
                             </div>
                         )}
                     </div>
@@ -443,18 +825,18 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                         ) : waitingQueues.length === 0 ? (
                             <div className="queue-empty">
                                 <div className="queue-empty-icon">
-                                    <Icons.Activity />
+                                    <Icons.CheckCircle />
                                 </div>
                                 <div className="queue-empty-text">
                                     Queue is empty<br />
-                                    <span style={{ fontSize: 12 }}>New customers will appear here</span>
+                                    <span style={{ fontSize: 12 }}>New customers appear here automatically</span>
                                 </div>
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                 {waitingQueues.map((q, i) => (
                                     <div key={q.id} style={{ animationDelay: `${i * 0.06}s` }}>
-                                        <QueueCard queue={q} theme={theme} isActive={false} />
+                                        <QueueCard queue={q} theme={theme} isActive={false} index={i} />
                                     </div>
                                 ))}
                             </div>
@@ -468,10 +850,25 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                         activeQueue={activeQueue}
                         theme={theme}
                         onAction={handleAction}
+                        onSkip={handleSkip}
+                        onNote={handleNote}
                         busy={busy}
+                        waitingCount={waitingQueues.length}
                     />
                 </aside>
             </div>
+
+            {/* Confirmation Dialog */}
+            {confirmDialog && (
+                <ConfirmDialog
+                    title={confirmDialog.title}
+                    message={confirmDialog.message}
+                    confirmLabel={confirmDialog.confirmLabel}
+                    danger={confirmDialog.danger}
+                    onConfirm={handleConfirmDialog}
+                    onCancel={() => setConfirmDialog(null)}
+                />
+            )}
 
             {/* Toast */}
             {toast && <div className="toast">{toast}</div>}

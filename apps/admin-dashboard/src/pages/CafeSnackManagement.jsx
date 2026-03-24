@@ -24,7 +24,11 @@ export function CafeSnackManagement() {
         if (!selectedBranch) return;
         setLoading(true);
         try {
-            const res = await api.get(`/studio/cafe-snacks?branch_id=${selectedBranch.id}`);
+            const params = new URLSearchParams();
+            if (selectedBranch && selectedBranch.id !== 'ALL') {
+                params.append('branch_id', selectedBranch.id);
+            }
+            const res = await api.get(`/studio/cafe-snacks?${params.toString()}`);
             setSnacks(res.data || []);
         } catch (err) {
             console.error('Failed to load cafe snacks', err);
@@ -198,7 +202,6 @@ export function CafeSnackManagement() {
                             {filtered.map(snack => (
                                 <TableRow key={snack.id} className="hover:bg-muted/50">
                                     <TableCell className="font-medium">{snack.label}</TableCell>
-                                    <TableCell>Rp {Number(snack.price).toLocaleString('id-ID')}</TableCell>
                                     <TableCell>Rp {Number(snack.price).toLocaleString('id-ID')}</TableCell>
                                     <TableCell>
                                         <Badge variant={snack.active !== false ? 'success' : 'secondary'}>{snack.active !== false ? 'Active' : 'Inactive'}</Badge>

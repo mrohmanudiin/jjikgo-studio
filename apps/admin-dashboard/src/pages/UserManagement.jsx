@@ -46,8 +46,11 @@ export function UserManagement() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const params = selectedBranch ? `?branch_id=${selectedBranch.id}` : '';
-      const { data } = await api.get(`/users${params}`);
+      const params = new URLSearchParams();
+      if (selectedBranch && selectedBranch.id !== 'ALL') {
+        params.append('branch_id', selectedBranch.id);
+      }
+      const { data } = await api.get(`/users?${params.toString()}`);
       setUsers(data);
     } catch (err) {
       console.error(err);

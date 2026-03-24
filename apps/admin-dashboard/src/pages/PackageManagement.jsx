@@ -24,7 +24,11 @@ export function PackageManagement() {
         if (!selectedBranch) return;
         setLoading(true);
         try {
-            const res = await api.get(`/studio/packages?branch_id=${selectedBranch.id}`);
+            const params = new URLSearchParams();
+            if (selectedBranch && selectedBranch.id !== 'ALL') {
+                params.append('branch_id', selectedBranch.id);
+            }
+            const res = await api.get(`/studio/packages?${params.toString()}`);
             setPackages(res.data || []);
         } catch (err) {
             console.error('Failed to load packages', err);
