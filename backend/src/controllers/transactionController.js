@@ -96,7 +96,10 @@ exports.createTransaction = async (req, res) => {
     }
 
     // ── Validate branch ───────────────────────────────────────────
-    const effectiveBranchId = parseInt(branch_id || req.user?.branchId);
+    const parsedReqBranchId = parseInt(branch_id, 10);
+    const parsedUserBranchId = parseInt(req.user?.branchId, 10);
+    const effectiveBranchId = !isNaN(parsedReqBranchId) ? parsedReqBranchId : (!isNaN(parsedUserBranchId) ? parsedUserBranchId : null);
+    
     if (!effectiveBranchId) {
       return res.status(400).json({ error: 'Branch ID is required. Make sure you are logged in with a valid account.' });
     }
@@ -133,11 +136,15 @@ exports.createTransaction = async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const parsedReqUserId = parseInt(user_id, 10);
+    const parsedAuthUserId = parseInt(req.user?.id, 10);
+    const effectiveUserId = !isNaN(parsedReqUserId) ? parsedReqUserId : (!isNaN(parsedAuthUserId) ? parsedAuthUserId : null);
+
     const [transaction] = await db.insert(transactions).values({
       invoiceNumber,
       branchId: effectiveBranchId,
       shiftId: effectiveShiftId,
-      userId: user_id ? parseInt(user_id) : (req.user?.id || null),
+      userId: effectiveUserId,
       customerName: mainSession.customer_name || 'Walk-in',
       customerEmail: mainSession.customer_email || '',
       peopleCount: parseInt(mainSession.people_count) || 1,

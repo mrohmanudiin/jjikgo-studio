@@ -9,18 +9,25 @@ const { eq, and, sql } = require('drizzle-orm');
 exports.startShift = async (req, res) => {
   try {
     const { branch_id, user_id, starting_cash } = req.body;
-    const effectiveBranchId = parseInt(branch_id || req.user?.branchId);
-    const effectiveUserId = parseInt(user_id || req.user?.id);
+    
+    // Safer parsing
+    const parsedReqBranchId = parseInt(branch_id, 10);
+    const parsedUserBranchId = parseInt(req.user?.branchId, 10);
+    const effectiveBranchId = !isNaN(parsedReqBranchId) ? parsedReqBranchId : (!isNaN(parsedUserBranchId) ? parsedUserBranchId : null);
+
+    const parsedReqUserId = parseInt(user_id, 10);
+    const parsedAuthUserId = parseInt(req.user?.id, 10);
+    const effectiveUserId = !isNaN(parsedReqUserId) ? parsedReqUserId : (!isNaN(parsedAuthUserId) ? parsedAuthUserId : null);
 
     // ── Validate branch ────────────────────────────────────────
-    if (!effectiveBranchId || isNaN(effectiveBranchId)) {
+    if (!effectiveBranchId) {
       return res.status(400).json({
         error: 'No branch assigned to your account. Ask an admin to assign you to a branch before starting a shift.'
       });
     }
 
     // ── Validate user ─────────────────────────────────────────
-    if (!effectiveUserId || isNaN(effectiveUserId)) {
+    if (!effectiveUserId) {
       return res.status(400).json({
         error: 'User ID is required. Please log in again.'
       });

@@ -1,51 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from '../components/ui/Table';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Search, Filter, SlidersHorizontal, MoreHorizontal } from 'lucide-react';
-import { cn } from '../lib/utils';
-
-const mockQueue = [
-    { id: 1, number: 'A023', name: 'Alif R.', theme: 'Elevator', booth: 'Booth 1', people: 3, status: 'In Session', time: '14:20' },
-    { id: 2, number: 'A024', name: 'Budi Santoso', theme: 'Vintage', booth: 'Booth 2', people: 2, status: 'Waiting', time: '14:25' },
-    { id: 3, number: 'A025', name: 'Siti Rahma', theme: 'Elevator', booth: 'Booth 1', people: 4, status: 'Selecting Photos', time: '14:15' },
-    { id: 4, number: 'A026', name: 'Dian & Friends', theme: 'Supermarket', booth: 'Booth 3', people: 5, status: 'Ready To Print', time: '14:10' },
-    { id: 5, number: 'A027', name: 'Fikri', theme: 'Self Studio', booth: 'Booth 4 - Self Studio', people: 1, status: 'Called', time: '14:30' },
-    { id: 6, number: 'A028', name: 'Anita', theme: 'Elevator', booth: 'Booth 1', people: 2, status: 'Completed', time: '14:05' },
-];
+import { Search, Filter, SlidersHorizontal, MoreHorizontal, Loader2, RefreshCw } from 'lucide-react';
+import api from '../utils/api';
+import { useBranch } from '../contexts/BranchContext';
+import { format } from 'date-fns';
 
 function getStatusBadge(status) {
-    switch (status) {
-        case 'Waiting': return <Badge variant="outline" className="border-amber-500/20 text-amber-600 bg-amber-500/10">Waiting</Badge>;
-        case 'Called': return <Badge variant="outline" className="border-cyan-500/20 text-cyan-600 bg-cyan-500/10">Called</Badge>;
-        case 'In Session': return <Badge variant="outline" className="border-blue-500/20 text-blue-600 bg-blue-500/10">In Session</Badge>;
-        case 'Selecting Photos': return <Badge variant="outline" className="border-purple-500/20 text-purple-600 bg-purple-500/10">Selecting Photos</Badge>;
-        case 'Ready To Print': return <Badge variant="outline" className="border-pink-500/20 text-pink-600 bg-pink-500/10">Ready To Print</Badge>;
-        case 'Completed': return <Badge variant="outline" className="border-emerald-500/20 text-emerald-600 bg-emerald-500/10">Completed</Badge>;
+    const s = status?.toLowerCase();
+    switch (s) {
+        case 'waiting': return <Badge variant="outline" className="border-amber-500/20 text-amber-600 bg-amber-500/10">Waiting</Badge>;
+        case 'called': return <Badge variant="outline" className="border-cyan-500/20 text-cyan-600 bg-cyan-500/10">Called</Badge>;
+        case 'in_session': return <Badge variant="outline" className="border-blue-500/20 text-blue-600 bg-blue-500/10">In Session</Badge>;
+        case 'print_requested': return <Badge variant="outline" className="border-pink-500/20 text-pink-600 bg-pink-500/10">Print Requested</Badge>;
+        case 'done': return <Badge variant="outline" className="border-emerald-500/20 text-emerald-600 bg-emerald-500/10">Done</Badge>;
         default: return <Badge variant="outline">{status}</Badge>;
     }
 }
 
 export function QueueMonitor() {
+    const { selectedBranch } = useBranch();
     const [searchTerm, setSearchTerm] = useState('');
-    const [themeFilter, setThemeFilter] = useState('All Themes');
-    const [boothFilter, setBoothFilter] = useState('All Booths');
-    const [statusFilter, setStatusFilter] = useState('All Statuses');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [queueItems, setQueueItems] = useState([]);
+    const [themes, setThemes] = useState([]);
+    const [themeFilter, setThemeFilter] = useState('all');
+    const [loading, setLoading] = useState(true);
 
-    const filteredQueue = mockQueue.filter(q =>
-        (themeFilter === 'All Themes' || q.theme === themeFilter) &&
-        (boothFilter === 'All Booths' || q.booth === boothFilter) &&
-        (statusFilter === 'All Statuses' || q.status === statusFilter) &&
-        (q.name.toLowerCase().includes(searchTerm.toLowerCase()) || q.number.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const fetchQueue = useCallback(async () => {
+        try {
+            const params = new URLSearchParams();
+            if (selectedBranch) params.append('branch_id', selectedBranch.id);
+
+            const [qRes, tRes] = await Promise.all([
+                api.get(`/queue?${params}`),
+                api.get(`/themes?${params}`)
+            ]);
+
+            // Queue data comes as { ThemeName: [...items] }
+            const queueMap = qRes.data || {};
+            const allItems = [];
+            Object.entries(queueMap).forEach(([themeName, items]) => {
+                if (Array.isArray(items)) {
+                    items.forEach(item => allItems.push({ ...item, themeName }));
+                }
+            });
+            setQueueItems(allItems);
+            setThemes(Array.isArray(tRes.data) ? tRes.data : []);
+        } catch (err) {
+            console.error('Failed to fetch queue:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedBranch]);
+
+    useEffect(() => {
+        fetchQueue();
+        // Listen for real-time updates
+        import('../utils/socket').then(({ socket }) => {
+            socket.on('queueUpdated', fetchQueue);
+            return () => socket.off('queueUpdated', fetchQueue);
+        });
+    }, [fetchQueue]);
+
+    const filtered = queueItems.filter(q => {
+        const s = q.status?.toLowerCase();
+        if (statusFilter !== 'all' && s !== statusFilter) return false;
+        if (themeFilter !== 'all' && q.themeName !== themeFilter) return false;
+        const term = searchTerm.toLowerCase();
+        if (term) {
+            const name = q.transaction?.customer_name?.toLowerCase() || '';
+            const num = String(q.queue_number || '');
+            if (!name.includes(term) && !num.includes(term)) return false;
+        }
+        return true;
+    });
+
+    const uniqueThemes = [...new Set(queueItems.map(q => q.themeName))];
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -56,123 +91,94 @@ export function QueueMonitor() {
                         Live tracking of customer queue and session flow.
                     </p>
                 </div>
-                <div className="flex bg-muted p-1 rounded-md">
-                    <Button variant="ghost" className="h-8 px-4 bg-background shadow-sm text-sm">Active</Button>
-                    <Button variant="ghost" className="h-8 px-4 text-muted-foreground text-sm">Completed</Button>
-                </div>
+                <Button variant="outline" size="sm" onClick={() => { setLoading(true); fetchQueue(); }}>
+                    <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+                </Button>
             </div>
 
             <Card>
                 <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4">
-                    <div className="flex flex-1 gap-2 max-w-sm">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <input
-                                type="text"
-                                placeholder="Search queue number or name..."
-                                className="h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <Button variant="outline" size="icon" className="shrink-0 md:hidden">
-                            <SlidersHorizontal className="h-4 w-4" />
-                        </Button>
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            placeholder="Search name or queue number..."
+                            className="h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
-
-                    <div className="hidden md:flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-2">
                         <select
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
-                            <option value="All Statuses">All Statuses</option>
-                            <option value="Waiting">Waiting</option>
-                            <option value="Called">Called</option>
-                            <option value="In Session">In Session</option>
-                            <option value="Selecting Photos">Selecting Photos</option>
-                            <option value="Ready To Print">Ready To Print</option>
+                            <option value="all">All Statuses</option>
+                            <option value="waiting">Waiting</option>
+                            <option value="called">Called</option>
+                            <option value="in_session">In Session</option>
+                            <option value="print_requested">Print Requested</option>
+                            <option value="done">Done</option>
                         </select>
                         <select
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                             value={themeFilter}
                             onChange={(e) => setThemeFilter(e.target.value)}
                         >
-                            <option value="All Themes">All Themes</option>
-                            <option value="Elevator">Elevator</option>
-                            <option value="Vintage">Vintage</option>
-                            <option value="Supermarket">Supermarket</option>
-                            <option value="Self Studio">Self Studio</option>
-                        </select>
-                        <select
-                            className="h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                            value={boothFilter}
-                            onChange={(e) => setBoothFilter(e.target.value)}
-                        >
-                            <option value="All Booths">All Booths</option>
-                            <option value="Booth 1">Booth 1</option>
-                            <option value="Booth 2">Booth 2</option>
-                            <option value="Booth 3">Booth 3</option>
-                            <option value="Booth 4 - Self Studio">Booth 4</option>
+                            <option value="all">All Themes</option>
+                            {uniqueThemes.map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                     </div>
                 </CardHeader>
                 <div className="border-t">
-                    <Table>
-                        <TableHeader className="bg-muted/50">
-                            <TableRow>
-                                <TableHead className="w-[100px] font-semibold">Queue No</TableHead>
-                                <TableHead className="font-semibold">Customer Name</TableHead>
-                                <TableHead className="font-semibold">Details</TableHead>
-                                <TableHead className="font-semibold">Status</TableHead>
-                                <TableHead className="text-right font-semibold text-muted-foreground w-[100px]">Created</TableHead>
-                                <TableHead className="w-[50px]"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredQueue.map((item) => (
-                                <TableRow key={item.id} className="hover:bg-muted/50 transition-colors group">
-                                    <TableCell className="font-medium text-primary">
-                                        {item.number}
-                                    </TableCell>
-                                    <TableCell className="font-medium">
-                                        {item.name}
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <span className="font-medium text-foreground">{item.theme}</span>
-                                            <span>•</span>
-                                            <span>{item.booth}</span>
-                                            <span>•</span>
-                                            <span>{item.people} pax</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        {getStatusBadge(item.status)}
-                                    </TableCell>
-                                    <TableCell className="text-right text-muted-foreground text-sm">
-                                        {item.time}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {filteredQueue.length === 0 && (
+                    {loading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader className="bg-muted/50">
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                                        <div className="flex flex-col items-center justify-center space-y-2">
-                                            <Filter className="h-8 w-8 text-muted-foreground/50" />
-                                            <p>No customers found matching the criteria.</p>
-                                            <Button variant="link" onClick={() => { setSearchTerm(''); setThemeFilter('All Themes'); setBoothFilter('All Booths'); setStatusFilter('All Statuses'); }}>Clear Filters</Button>
-                                        </div>
-                                    </TableCell>
+                                    <TableHead className="w-[100px] font-semibold">Queue #</TableHead>
+                                    <TableHead className="font-semibold">Customer</TableHead>
+                                    <TableHead className="font-semibold">Theme</TableHead>
+                                    <TableHead className="font-semibold">Pax</TableHead>
+                                    <TableHead className="font-semibold">Status</TableHead>
+                                    <TableHead className="text-right font-semibold">Time</TableHead>
                                 </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {filtered.map((item) => (
+                                    <TableRow key={item.id} className="hover:bg-muted/50 transition-colors">
+                                        <TableCell className="font-medium text-primary">
+                                            {item.queue_number}
+                                        </TableCell>
+                                        <TableCell className="font-medium">
+                                            {item.transaction?.customer_name || 'Walk-in'}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">{item.themeName}</TableCell>
+                                        <TableCell>{item.transaction?.people_count || 1}</TableCell>
+                                        <TableCell>{getStatusBadge(item.status)}</TableCell>
+                                        <TableCell className="text-right text-muted-foreground text-sm">
+                                            {item.created_at ? format(new Date(item.created_at), 'HH:mm') : '-'}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {filtered.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                                            <div className="flex flex-col items-center justify-center space-y-2">
+                                                <Filter className="h-8 w-8 text-muted-foreground/50" />
+                                                <p>No queue entries found.</p>
+                                                <Button variant="link" onClick={() => { setSearchTerm(''); setStatusFilter('all'); setThemeFilter('all'); }}>Clear Filters</Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    )}
                 </div>
             </Card>
         </div>

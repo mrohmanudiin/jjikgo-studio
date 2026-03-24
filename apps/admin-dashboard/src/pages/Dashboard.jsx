@@ -37,43 +37,65 @@ export function Dashboard() {
   const [recentTx, setRecentTx] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dailyTarget, setDailyTarget] = useState(1000000);
+  const [monthlyTarget, setMonthlyTarget] = useState(30000000);
+  const [yearlyTarget, setYearlyTarget] = useState(360000000);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const from30 = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+      const today = new Date();
+      
+      const yearStart = new Date(today.getFullYear(), 0, 1);
+      const yearStartStr = format(yearStart, 'yyyy-MM-dd');
+      const todayStr = format(today, 'yyyy-MM-dd');
+      const monthStartStr = format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
+      const from30 = format(subDays(today, 30), 'yyyy-MM-dd');
+
       if (selectedBranch) params.append('branch_id', selectedBranch.id);
-      params.append('date_from', from30);
-      params.append('date_to', today);
+      params.append('date_from', yearStartStr);
+      params.append('date_to', todayStr);
 
       const [{ data: txAll }, { data: settingsData }] = await Promise.all([
         api.get(`/transactions?${params}`),
         api.get(`/studio/settings?branchFilter=${selectedBranch?.id || ''}`)
       ]);
 
-      if (settingsData && settingsData.daily_target_revenue) {
-        setDailyTarget(Number(settingsData.daily_target_revenue));
+      if (settingsData) {
+        if (settingsData.daily_target_revenue) setDailyTarget(Number(settingsData.daily_target_revenue));
+        if (settingsData.monthly_target_revenue) setMonthlyTarget(Number(settingsData.monthly_target_revenue));
+        if (settingsData.yearly_target_revenue) setYearlyTarget(Number(settingsData.yearly_target_revenue));
       }
 
       // Compute stats
       const txList = Array.isArray(txAll) ? txAll : [];
-      const todayTx = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === today);
-      const totalRevenue = txList.reduce((s, t) => s + (Number(t.total) || 0), 0);
-      const todayRevenue = todayTx.reduce((s, t) => s + (Number(t.total) || 0), 0);
+      let todayRev = 0;
+      let monthRev = 0;
+      let yearRev = 0;
+      let rev30d = 0;
+      
+      txList.forEach(t => {
+        const txDate = format(new Date(t.created_at), 'yyyy-MM-dd');
+        const val = Number(t.total) || 0;
+        yearRev += val;
+        if (txDate >= monthStartStr) monthRev += val;
+        if (txDate >= from30) rev30d += val;
+        if (txDate === todayStr) todayRev += val;
+      });
 
       setStats({
-        totalToday: todayTx.length,
-        totalAllTime: txAll.length,
-        revenue30d: totalRevenue,
-        todayRevenue,
-        waiting: txList.filter(t => t.status === 'waiting').length,
+        totalToday: txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).length,
+        totalAllTime: txList.length,
+        revenue30d: rev30d,
+        todayRevenue: todayRev,
+        monthlyRevenue: monthRev,
+        yearlyRevenue: yearRev,
+        waiting: txList.filter(t => t.status === 'waiting' && format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).length,
       });
 
       // Build last 7 days chart
       const last7 = Array.from({ length: 7 }, (_, i) => {
-        const day = subDays(new Date(), 6 - i);
+        const day = subDays(today, 6 - i);
         const key = format(day, 'yyyy-MM-dd');
         const dayTx = txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === key);
         return {
@@ -84,8 +106,7 @@ export function Dashboard() {
       });
       setChartData(last7);
 
-      // Recent transactions
-      setRecentTx(txList.slice(0, 10));
+      setRecentTx(txList.filter(t => format(new Date(t.created_at), 'yyyy-MM-dd') === todayStr).slice(0, 10));
     } catch (err) {
       console.error(err);
     } finally {
@@ -114,22 +135,73 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="relative flex items-center justify-center">
+          <div className="absolute w-16 h-16 border-4 border-primary/20 rounded-full"></div>
+          <div className="absolute w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <Camera className="h-6 w-6 text-primary animate-pulse" />
+        </div>
       </div>
     );
   }
 
+  const TargetProgress = ({ title, subtitle, revenue, target, icon: Icon, colorClass, gradientClass }) => {
+    const progress = Math.min(100, Math.max(0, (revenue / (target || 1)) * 100));
+    return (
+      <div className="bg-card/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
+        <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-white/5 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-colors duration-500" />
+        
+        <div className="flex flex-col gap-5 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className={`h-14 w-14 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${gradientClass}`}>
+              <Icon className="h-7 w-7 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold tracking-tight text-foreground/90">{title}</h3>
+              <p className="text-sm text-muted-foreground font-medium">{subtitle}</p>
+            </div>
+            <div className="text-right">
+              <div className={`text-3xl font-black ${colorClass}`}>
+                {progress.toFixed(1)}%
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <div className="w-full bg-secondary/80 h-4 rounded-full overflow-hidden shadow-inner p-0.5">
+              <div 
+                className={`h-full rounded-full relative ${gradientClass}`}
+                style={{ width: `${progress}%`, transition: 'width 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+              >
+                <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-white/40 to-transparent" />
+              </div>
+            </div>
+            <div className="flex justify-between items-center text-sm font-semibold text-muted-foreground px-1">
+              <span>Rp {revenue.toLocaleString('id-ID')}</span>
+              <span>Target: Rp {target.toLocaleString('id-ID')}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-black tracking-tight">
-          {selectedBranch ? `${selectedBranch.name} Dashboard` : 'All Branches Dashboard'}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Real-time overview for {format(new Date(), 'EEEE, dd MMMM yyyy')}
-        </p>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-bold mb-3 border border-primary/20">
+            <Activity className="h-4 w-4" /> Live Overview
+          </div>
+          <h1 className="text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
+            {selectedBranch ? `${selectedBranch.name} Dashboard` : 'All Branches Dashboard'}
+          </h1>
+          <p className="text-muted-foreground mt-2 text-lg">
+            Real-time performance for {format(new Date(), 'EEEE, dd MMMM yyyy')}
+          </p>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -151,49 +223,48 @@ export function Dashboard() {
         <StatCard
           title="Queue Waiting"
           value={stats?.waiting ?? 0}
-          icon={Activity}
+          icon={Users}
           bgClass="bg-orange-500/10"
           colorClass="text-orange-500"
         />
         <StatCard
           title="Revenue (30 Days)"
-          value={`Rp ${((stats?.revenue30d ?? 0) / 1000).toFixed(0)}K`}
+          value={`Rp ${((stats?.revenue30d ?? 0) / 1000000).toFixed(1)}M`}
           icon={TrendingUp}
           bgClass="bg-blue-500/10"
           colorClass="text-blue-600"
         />
       </div>
 
-      {/* Target Progress */}
-      <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-3xl p-6 relative overflow-hidden">
-        <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
-        <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
-          <div className="h-16 w-16 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0">
-            <Target className="h-8 w-8 text-primary" />
-          </div>
-          <div className="flex-1 w-full">
-            <div className="flex justify-between items-end mb-2">
-              <div>
-                <h3 className="text-xl font-bold">Daily Revenue Target</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">Track your progress for {format(new Date(), 'dd MMM yyyy')}</p>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-black text-primary">
-                  {Math.min(100, ((stats?.todayRevenue || 0) / dailyTarget) * 100).toFixed(1)}%
-                </div>
-                <div className="text-xs text-muted-foreground font-medium">Rp {(stats?.todayRevenue || 0).toLocaleString('id-ID')} / Rp {dailyTarget.toLocaleString('id-ID')}</div>
-              </div>
-            </div>
-            <div className="w-full bg-secondary/60 h-3 rounded-full overflow-hidden shadow-inner">
-              <div 
-                className="bg-gradient-to-r from-primary to-primary/80 h-full rounded-full relative"
-                style={{ width: `${Math.min(100, Math.max(0, ((stats?.todayRevenue || 0) / dailyTarget) * 100))}%`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }}
-              >
-                <div className="absolute top-0 right-0 bottom-0 left-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_25%,rgba(255,255,255,0.2)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.2)_75%,rgba(255,255,255,0.2)_100%)] bg-[length:20px_20px] animate-[pulse_2s_linear_infinite]" />
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Target Progresses */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <TargetProgress 
+          title="Daily Target"
+          subtitle="Today's goal"
+          revenue={stats?.todayRevenue || 0}
+          target={dailyTarget}
+          icon={Target}
+          colorClass="text-rose-500"
+          gradientClass="bg-gradient-to-tr from-rose-600 to-rose-400"
+        />
+        <TargetProgress 
+          title="Monthly Target"
+          subtitle={format(new Date(), 'MMMM yyyy')}
+          revenue={stats?.monthlyRevenue || 0}
+          target={monthlyTarget}
+          icon={CalendarDays}
+          colorClass="text-blue-500"
+          gradientClass="bg-gradient-to-tr from-blue-600 to-blue-400"
+        />
+        <TargetProgress 
+          title="Yearly Target"
+          subtitle={format(new Date(), 'yyyy')}
+          revenue={stats?.yearlyRevenue || 0}
+          target={yearlyTarget}
+          icon={TrendingUp}
+          colorClass="text-emerald-500"
+          gradientClass="bg-gradient-to-tr from-emerald-600 to-emerald-400"
+        />
       </div>
 
       {/* Charts */}

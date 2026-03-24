@@ -66,9 +66,11 @@ export function DailyCash() {
         return () => { isMounted = false; };
     }, [fetchData]);
 
+    const [confirmMsg, setConfirmMsg] = useState('');
+
     const handleConfirm = () => {
         setConfirmed(true);
-        alert('Cash drawer verified (Demo Only). Admin typically only views, Cashier closes shift.');
+        setConfirmMsg('✓ Cash drawer verified by admin. Cashier is responsible for closing the shift.');
     };
 
     const processShiftData = () => {
@@ -205,18 +207,25 @@ export function DailyCash() {
                                 )}
                             </div>
 
-                            <Button
-                                onClick={handleConfirm}
-                                disabled={confirmed || !actualCash}
-                                className="w-full mt-auto h-11"
-                                variant={confirmed ? "outline" : "default"}
-                            >
-                                {confirmed ? (
-                                    <><CheckCircle2 className="mr-2 h-5 w-5 text-emerald-500" /> Admin Verified</>
-                                ) : (
-                                    "Verify Drawer"
+                            <div className="mt-auto">
+                                <Button
+                                    onClick={handleConfirm}
+                                    disabled={confirmed || !actualCash}
+                                    className="w-full h-11"
+                                    variant={confirmed ? "outline" : "default"}
+                                >
+                                    {confirmed ? (
+                                        <><CheckCircle2 className="mr-2 h-5 w-5 text-emerald-500" /> Admin Verified</>
+                                    ) : (
+                                        "Verify Drawer"
+                                    )}
+                                </Button>
+                                {confirmMsg && (
+                                    <p className="text-sm font-medium text-emerald-500 text-center mt-3 animate-in fade-in slide-in-from-bottom-2">
+                                        {confirmMsg}
+                                    </p>
                                 )}
-                            </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>

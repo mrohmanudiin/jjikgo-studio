@@ -49,9 +49,10 @@ export function ThemeManagement() {
                 return {
                     id: theme.id,
                     name: theme.name,
-                    maxPeople: parseInt(theme.maxPeople || 2),
+                    maxPeople: parseInt(theme.max_people || theme.maxPeople || 2),
                     duration: theme.duration || 15,
-                    price: theme.price || 35000, 
+                    price: Number(theme.price) || 0, 
+                    active: theme.active !== false,
                     status: theme.active !== false ? 'Active' : 'Inactive',
                     sessionsTotal,
                     revenueTotal,

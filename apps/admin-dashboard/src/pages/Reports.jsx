@@ -6,7 +6,7 @@ import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
 import { format, subDays, startOfMonth } from 'date-fns';
 
-const mockReports = [
+const reportTypes = [
     {
         title: 'Daily Revenue & Transactions',
         desc: 'Detailed breakdown of all payments and sales for a selected date range.',
@@ -28,29 +28,20 @@ export function Reports() {
 
     const getDates = (range) => {
         const today = new Date();
-        let start = new Date();
-        let end = new Date();
-
-        if (range === 'Today') {
-            start.setHours(0, 0, 0, 0);
-            end.setHours(23, 59, 59, 999);
-        } else if (range === 'Yesterday') {
-            start = subDays(today, 1);
-            start.setHours(0, 0, 0, 0);
-            end = subDays(today, 1);
-            end.setHours(23, 59, 59, 999);
-        } else if (range === 'Last 7 Days') {
-            start = subDays(today, 7);
-            start.setHours(0, 0, 0, 0);
-        } else if (range === 'Last 30 Days') {
-            start = subDays(today, 30);
-            start.setHours(0, 0, 0, 0);
-        } else if (range === 'This Month') {
-            start = startOfMonth(today);
-            start.setHours(0, 0, 0, 0);
+        switch (range) {
+            case 'Today':
+                return { start: format(today, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+            case 'Yesterday':
+                return { start: format(subDays(today, 1), 'yyyy-MM-dd'), end: format(subDays(today, 1), 'yyyy-MM-dd') };
+            case 'Last 7 Days':
+                return { start: format(subDays(today, 7), 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+            case 'Last 30 Days':
+                return { start: format(subDays(today, 30), 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+            case 'This Month':
+                return { start: format(startOfMonth(today), 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
+            default:
+                return { start: format(today, 'yyyy-MM-dd'), end: format(today, 'yyyy-MM-dd') };
         }
-
-        return { start: start.toISOString(), end: end.toISOString() };
     };
 
     const downloadCSV = (csvContent, fileName) => {
@@ -66,32 +57,39 @@ export function Reports() {
     };
 
     const handleExport = async (title, formatType) => {
-        if (!selectedBranch) return alert("Select a branch first.");
-        
         setLoadingReport(title);
         
         try {
             const { start, end } = getDates(dateRange);
-            const branchQuery = `branch_id=${selectedBranch.id}`;
+            const params = new URLSearchParams();
+            if (selectedBranch) params.append('branch_id', selectedBranch.id);
+            params.append('date_from', start);
+            params.append('date_to', end);
+            const branchLabel = selectedBranch?.name || 'AllBranches';
 
             if (title === 'Daily Revenue & Transactions') {
-                // Fetch transactions
-                const res = await api.get(`/transactions?${branchQuery}&date_from=${start}&date_to=${end}`);
+                const res = await api.get(`/transactions?${params}`);
                 const txs = res.data;
 
-                let csv = "Invoice,Date,Cashier,Theme,Package,Payment Method,Status,Total\n";
+                let csv = "Invoice,Date,Branch,Cashier,Theme,Package,Payment Method,Status,Total\n";
                 txs.forEach(t => {
                     const dt = format(new Date(t.created_at), 'yyyy-MM-dd HH:mm');
+                    const branch = `"${t.branch?.name || 'N/A'}"`;
                     const c = `"${t.user?.full_name || 'N/A'}"`;
                     const theme = `"${t.theme || 'N/A'}"`;
                     const pkg = `"${t.package || 'N/A'}"`;
-                    csv += `${t.invoice_number},${dt},${c},${theme},${pkg},${t.payment_method},${t.status},${t.total}\n`;
+                    csv += `${t.invoice_number},${dt},${branch},${c},${theme},${pkg},${t.payment_method},${t.status},${t.total}\n`;
                 });
                 
-                downloadCSV(csv, `Revenue_Report_${selectedBranch.name}_${dateRange.replace(/ /g, '_')}.csv`);
+                downloadCSV(csv, `Revenue_Report_${branchLabel}_${dateRange.replace(/ /g, '_')}.csv`);
             } 
             else if (title === 'Shift Closing Logs') {
-                const res = await api.get(`/shifts/history?${branchQuery}&date_from=${start}&date_to=${end}`);
+                if (!selectedBranch) {
+                    alert('Please select a branch to export shift logs.');
+                    setLoadingReport(null);
+                    return;
+                }
+                const res = await api.get(`/shifts/history?${params}`);
                 const shifts = res.data;
 
                 let csv = "ID,Start Date,End Date,Cashier,Starting Cash,Ending Cash,Expenses\n";
@@ -99,14 +97,14 @@ export function Reports() {
                     const st = format(new Date(s.start_time), 'yyyy-MM-dd HH:mm');
                     const en = s.end_time ? format(new Date(s.end_time), 'yyyy-MM-dd HH:mm') : 'Ongoing';
                     const c = `"${s.user?.full_name || 'N/A'}"`;
-                    csv += `${s.id},${st},${en},${c},${s.starting_cash},${s.ending_cash},${s.total_expenses}\n`;
+                    csv += `${s.id},${st},${en},${c},${s.starting_cash},${s.ending_cash},${s.total_expenses || 0}\n`;
                 });
 
-                downloadCSV(csv, `Shifts_Report_${selectedBranch.name}_${dateRange.replace(/ /g, '_')}.csv`);
+                downloadCSV(csv, `Shifts_Report_${branchLabel}_${dateRange.replace(/ /g, '_')}.csv`);
             }
         } catch (err) {
             console.error(err);
-            alert("Failed to export report.");
+            alert("Failed to export report: " + (err.response?.data?.error || err.message));
         } finally {
             setLoadingReport(null);
         }
@@ -122,7 +120,7 @@ export function Reports() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-                {mockReports.map((report, i) => (
+                {reportTypes.map((report, i) => (
                     <Card key={i} className="hover:shadow-md transition-shadow flex flex-col">
                         <CardHeader className="flex flex-row items-center gap-4 pb-4">
                             <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">

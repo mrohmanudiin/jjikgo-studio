@@ -415,19 +415,19 @@ export default function NewTransaction() {
                                 id="promo-select"
                                 className="input"
                                 style={{ paddingLeft: 40, paddingRight: 40, appearance: 'none', cursor: 'pointer' }}
-                                value={builder.promo?.id || 'none'}
+                                value={builder.promo?.id ? String(builder.promo.id) : 'none'}
                                 onChange={(e) => {
                                     if (e.target.value === 'none') {
                                         setBuilderField('promo', null);
                                     } else {
-                                        const p = promosList.find((pr) => pr.id === parseInt(e.target.value));
+                                        const p = promosList.find((pr) => String(pr.id) === e.target.value);
                                         setBuilderField('promo', p);
                                     }
                                 }}
                             >
                                 <option value="none">No Promo</option>
                                 {promosList.filter(p => p.active !== false).map((p) => (
-                                    <option key={p.id} value={p.id}>{p.label}</option>
+                                    <option key={p.id} value={String(p.id)}>{p.label}</option>
                                 ))}
                             </select>
                         </div>
@@ -460,9 +460,9 @@ export default function NewTransaction() {
                                 gap: 8,
                             }}>
                                 <CheckCircle2 size={15} />
-                                {(builder.promo.type === 'percent' || builder.promo.type === 'percentage')
+                                {(builder.promo.type?.toLowerCase() === 'percent' || builder.promo.type?.toLowerCase() === 'percentage')
                                     ? `${builder.promo.discount}% discount applied`
-                                    : builder.promo.type === 'flat'
+                                    : builder.promo.type?.toLowerCase() === 'flat'
                                         ? `${formatCurrency(builder.promo.discount)} discount applied`
                                         : discount > 0
                                             ? `Manual: ${formatCurrency(discount)} applied`

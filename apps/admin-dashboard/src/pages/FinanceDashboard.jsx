@@ -41,28 +41,28 @@ function getDateRange(range, customFrom, customTo) {
     }
 }
 
-function StatCard({ title, value, subtext, icon: Icon, trend }) {
+function StatCard({ title, value, subtext, icon: Icon, trend, colorClass = 'text-primary', bgClass = 'bg-primary/10' }) {
+    const positive = trend !== undefined && trend >= 0;
     return (
-        <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Icon className="h-4 w-4 text-primary" />
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-                <div className="flex items-center text-xs text-muted-foreground mt-1">
+        <div className="bg-card/50 backdrop-blur-md rounded-3xl border border-white/10 shadow-sm hover:shadow-xl transition-all duration-300 group overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-32 bg-gradient-to-br from-primary/5 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
+            <div className="p-6 relative z-10">
+                <div className="flex justify-between items-start mb-4">
+                    <div className={`${bgClass} p-3 rounded-2xl group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className={`h-6 w-6 ${colorClass}`} />
+                    </div>
                     {trend !== undefined && trend !== null && (
-                        <span className={cn("inline-flex items-center font-medium mr-1", trend >= 0 ? "text-emerald-500" : "text-rose-500")}>
-                            {trend >= 0 ? <ArrowUpRight className="h-3 w-3 mr-0.5" /> : <ArrowUpRight className="h-3 w-3 mr-0.5 rotate-90" />}
+                        <div className={`flex items-center gap-1 text-xs font-bold ${positive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3 rotate-90" />}
                             {Math.abs(trend)}%
-                        </span>
+                        </div>
                     )}
-                    <span>{subtext}</span>
                 </div>
-            </CardContent>
-        </Card>
+                <div className="text-3xl font-black mb-1 bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">{value}</div>
+                <div className="text-sm text-muted-foreground font-medium">{title}</div>
+                {subtext && <div className="text-xs text-muted-foreground mt-1">{subtext}</div>}
+            </div>
+        </div>
     );
 }
 
@@ -240,23 +240,31 @@ export function FinanceDashboard() {
 
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Finance Analytics</h2>
-                    <p className="text-muted-foreground mt-1">Deep dive into financial metrics, revenue breakdown, and trends. {selectedBranch && <span className="text-primary font-medium">— {selectedBranch.name}</span>}</p>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-bold mb-3 border border-primary/20">
+                        <CircleDollarSign className="h-4 w-4" /> Finance Hub
+                    </div>
+                    <h1 className="text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/60">
+                        Finance Analytics
+                    </h1>
+                    <p className="text-muted-foreground mt-2 text-lg">
+                        Deep dive into financial metrics, revenue breakdown, and trends. {selectedBranch && <span className="text-primary font-medium">— {selectedBranch.name}</span>}
+                    </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setShowTargetModal(true)} className="h-8">
+                <div className="flex flex-col items-end gap-3">
+                    <Button variant="default" className="shadow-lg shadow-primary/20 bg-gradient-to-r from-primary to-primary/80 hover:bg-primary/90 rounded-xl" onClick={() => setShowTargetModal(true)}>
                         <Target className="mr-2 h-4 w-4" /> Set Targets
                     </Button>
-                    <div className="flex items-center border rounded-md p-1 bg-muted/50">
+                    <div className="flex items-center border border-white/10 rounded-xl p-1 bg-card/50 backdrop-blur-md shadow-sm">
                         {['Today', '7 Days', '30 Days', 'This Month'].map(range => (
                             <Button
                                 key={range}
                                 variant={dateRange === range ? "secondary" : "ghost"}
                                 size="sm"
-                                className="h-8 text-xs px-3"
+                                className={`text-xs px-4 rounded-lg transition-all ${dateRange === range ? 'bg-primary/20 text-primary shadow-sm' : 'hover:bg-muted font-medium text-muted-foreground'}`}
                                 onClick={() => setDateRange(range)}
                             >
                                 {range}
@@ -272,30 +280,38 @@ export function FinanceDashboard() {
                 </div>
             ) : (
                 <>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} subtext="Collected" icon={CircleDollarSign} />
-                    <StatCard title="Total Transactions" value={totalTransactions} subtext="Successful payments" icon={Activity} />
-                    <StatCard title="Avg Check Size" value={formatCurrency(avgCheckSize)} subtext="Per transaction" icon={CreditCard} />
-                    <Card className="hover:shadow-md transition-shadow">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">{dateRange === 'Today' ? 'Daily Target' : 'Revenue Target'}</CardTitle>
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                <Target className="h-4 w-4 text-primary" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <StatCard title="Total Revenue" value={formatCurrency(totalRevenue)} subtext="Collected" icon={CircleDollarSign} bgClass="bg-blue-500/10" colorClass="text-blue-500" />
+                    <StatCard title="Total Transactions" value={totalTransactions} subtext="Successful payments" icon={Activity} bgClass="bg-violet-500/10" colorClass="text-violet-500" />
+                    <StatCard title="Avg Check Size" value={formatCurrency(avgCheckSize)} subtext="Per transaction" icon={CreditCard} bgClass="bg-emerald-500/10" colorClass="text-emerald-500" />
+                    
+                    <div className="bg-gradient-to-br from-primary/10 to-primary/5 backdrop-blur-md rounded-3xl border border-primary/20 shadow-sm relative overflow-hidden flex flex-col justify-center p-6 min-h-[140px]">
+                        <div className="absolute top-0 right-0 h-full w-1/2 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
+                        <div className="flex justify-between items-center mb-3 relative z-10">
+                             <div className="text-sm font-medium text-foreground">
+                                 {dateRange === 'Today' ? 'Daily Target' : 'Revenue Target'} Progress
+                             </div>
+                             <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                 <Target className="h-4 w-4 text-primary" />
+                             </div>
+                        </div>
+                        <div className="flex items-end justify-between relative z-10">
+                            <div className="text-3xl font-black text-primary">
+                                {(totalRevenue / (dateRange === 'Today' ? targets.daily : targets.monthly) * 100).toFixed(1)}%
                             </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{(totalRevenue / (dateRange === 'Today' ? targets.daily : targets.monthly) * 100).toFixed(1)}%</div>
-                            <div className="w-full bg-secondary h-2 rounded-full overflow-hidden mt-2">
-                                <div 
-                                    className="bg-primary h-full transition-all duration-500" 
-                                    style={{ width: `${Math.min(100, Math.max(0, (totalRevenue / (dateRange === 'Today' ? targets.daily : targets.monthly) * 100)))}%` }}
-                                ></div>
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-2">
+                            <div className="text-xs font-semibold text-muted-foreground mb-1">
                                 {formatCurrency(totalRevenue)} / {formatCurrency(dateRange === 'Today' ? targets.daily : targets.monthly)}
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                        <div className="w-full bg-secondary/80 h-3 rounded-full overflow-hidden mt-3 shadow-inner relative z-10">
+                            <div 
+                                className="bg-gradient-to-r from-primary to-primary/80 h-full rounded-full transition-all duration-1000 ease-out" 
+                                style={{ width: `${Math.min(100, Math.max(0, (totalRevenue / (dateRange === 'Today' ? targets.daily : targets.monthly) * 100)))}%` }}
+                            >
+                                <div className="absolute top-0 right-0 bottom-0 left-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_25%,rgba(255,255,255,0.2)_50%,transparent_50%,transparent_75%,rgba(255,255,255,0.2)_75%,rgba(255,255,255,0.2)_100%)] bg-[length:20px_20px] animate-[pulse_2s_linear_infinite]" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-7">
@@ -414,46 +430,65 @@ export function FinanceDashboard() {
                 </>
             )}
             {showTargetModal && (
-                <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-                    <div className="bg-card w-full max-w-md rounded-xl border shadow-lg overflow-hidden animate-in fade-in zoom-in-95">
-                        <div className="flex justify-between items-center p-6 border-b">
-                            <h3 className="text-lg font-semibold">Set Revenue Targets</h3>
-                            <Button variant="ghost" size="sm" onClick={() => setShowTargetModal(false)} className="h-8 w-8 p-0 rounded-full">
+                <div className="fixed inset-0 bg-background/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4">
+                    <div className="bg-card/90 backdrop-blur-md w-full max-w-lg rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+                        
+                        <div className="flex justify-between items-center p-6 md:p-8 border-b border-white/5 relative z-10">
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-primary/20 text-primary">
+                                    <Target className="h-5 w-5" />
+                                </div>
+                                <h3 className="text-xg font-bold">Set Revenue Targets</h3>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => setShowTargetModal(false)} className="rounded-full hover:bg-white/10">
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 md:p-8 space-y-6 relative z-10">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Daily Target (Rp)</label>
-                                <input 
-                                    type="number" 
-                                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                    value={targets.daily}
-                                    onChange={(e) => setTargets({...targets, daily: Number(e.target.value)})}
-                                />
+                                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Daily Target (Rp)</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-muted-foreground font-medium">Rp</div>
+                                    <input 
+                                        type="number" 
+                                        className="w-full h-12 rounded-xl border border-input/50 bg-background/50 pl-11 pr-4 text-lg font-bold shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all font-mono"
+                                        value={targets.daily}
+                                        onChange={(e) => setTargets({...targets, daily: Number(e.target.value)})}
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Monthly Target (Rp)</label>
-                                <input 
-                                    type="number" 
-                                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                    value={targets.monthly}
-                                    onChange={(e) => setTargets({...targets, monthly: Number(e.target.value)})}
-                                />
+                                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Monthly Target (Rp)</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-muted-foreground font-medium">Rp</div>
+                                    <input 
+                                        type="number" 
+                                        className="w-full h-12 rounded-xl border border-input/50 bg-background/50 pl-11 pr-4 text-lg font-bold shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all font-mono"
+                                        value={targets.monthly}
+                                        onChange={(e) => setTargets({...targets, monthly: Number(e.target.value)})}
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">Yearly Target (Rp)</label>
-                                <input 
-                                    type="number" 
-                                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
-                                    value={targets.yearly}
-                                    onChange={(e) => setTargets({...targets, yearly: Number(e.target.value)})}
-                                />
+                                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Yearly Target (Rp)</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-muted-foreground font-medium">Rp</div>
+                                    <input 
+                                        type="number" 
+                                        className="w-full h-12 rounded-xl border border-input/50 bg-background/50 pl-11 pr-4 text-lg font-bold shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all font-mono"
+                                        value={targets.yearly}
+                                        onChange={(e) => setTargets({...targets, yearly: Number(e.target.value)})}
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <div className="flex justify-end p-6 border-t gap-2 bg-muted/40">
-                            <Button variant="outline" onClick={() => setShowTargetModal(false)}>Cancel</Button>
-                            <Button onClick={handleSaveTargets}>Save Targets</Button>
+                        <div className="flex justify-end p-6 md:p-8 border-t border-white/5 gap-3 bg-muted/20 relative z-10">
+                            <Button variant="ghost" onClick={() => setShowTargetModal(false)} className="rounded-xl px-6 min-h-[44px]">Cancel</Button>
+                            <Button onClick={handleSaveTargets} className="rounded-xl px-8 min-h-[44px] shadow-lg shadow-primary/20 bg-gradient-to-r from-primary to-primary/80 hover:bg-primary/90">
+                                Save Targets
+                            </Button>
                         </div>
                     </div>
                 </div>
