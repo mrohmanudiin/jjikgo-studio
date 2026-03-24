@@ -22,7 +22,10 @@ export function DailyCash() {
     const [actualCash, setActualCash] = useState('');
 
     const fetchData = useCallback(async () => {
-        if (!selectedBranch) return;
+        if (!selectedBranch) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             const [shiftRes, historyRes] = await Promise.all([
@@ -53,17 +56,34 @@ export function DailyCash() {
     // Socket updates
     useEffect(() => {
         let isMounted = true;
-        import('../utils/socket').then(({ socket }) => {
-            if (!isMounted) return;
-            const handleUpdate = () => fetchData();
-            socket.on('queueUpdated', handleUpdate);
-            socket.on('adminEvent', handleUpdate);
-            return () => {
-                socket.off('queueUpdated', handleUpdate);
-                socket.off('adminEvent', handleUpdate);
-            };
-        });
-        return () => { isMounted = false; };
+        let socketInstance = null;
+        
+        const initSocket = async () => {
+            try {
+                const { socket } = await import('../utils/socket');
+                if (!isMounted) return;
+                socketInstance = socket;
+                
+                const handleUpdate = () => {
+                    if (isMounted) fetchData();
+                };
+                
+                socket.on('queueUpdated', handleUpdate);
+                socket.on('adminEvent', handleUpdate);
+            } catch (err) {
+                console.error('Socket import failed', err);
+            }
+        };
+        
+        initSocket();
+
+        return () => {
+            isMounted = false;
+            if (socketInstance) {
+                socketInstance.off('queueUpdated');
+                socketInstance.off('adminEvent');
+            }
+        };
     }, [fetchData]);
 
     const [confirmMsg, setConfirmMsg] = useState('');
@@ -122,7 +142,17 @@ export function DailyCash() {
                 </Button>
             </div>
 
-            {!shiftData ? (
+            {!selectedBranch ? (
+                <Card className="border-dashed py-12">
+                    <CardContent className="flex flex-col items-center justify-center space-y-3">
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                            <Banknote className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <h3 className="font-semibold text-lg text-center">Select a Branch</h3>
+                        <p className="text-muted-foreground text-center">Please select a specific branch to view daily cash and shift data.</p>
+                    </CardContent>
+                </Card>
+            ) : !shiftData ? (
                 <Card className="border-dashed py-12">
                      <CardContent className="flex flex-col items-center justify-center space-y-3">
                          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">

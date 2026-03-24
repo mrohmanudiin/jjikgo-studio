@@ -3,30 +3,28 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../co
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
-import { Plus, TrendingUp, MonitorPlay, Search, Loader2, Pencil, Trash2, X, Save } from 'lucide-react';
+import { Plus, TrendingUp, MonitorPlay, Search, Loader2, Pencil, Trash2, X, Save, Copy } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
 
 export function ThemeManagement() {
-    const { selectedBranch } = useBranch();
+    const { selectedBranch, branches } = useBranch();
     const [themes, setThemes] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null);
-    const [formData, setFormData] = useState({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true });
+    const [formData, setFormData] = useState({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true, branchId: null });
     const [showForm, setShowForm] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const fetchData = useCallback(async () => {
-        if (!selectedBranch) return;
         setLoading(true);
         try {
-            // Fetch themes & transactions
             const [themesRes, txRes] = await Promise.all([
                 api.get('/studio/themes'),
-                api.get(`/transactions?branch_id=${selectedBranch.id}`)
+                api.get(selectedBranch ? `/transactions?branch_id=${selectedBranch.id}` : '/transactions')
             ]);
 
             const allTxs = txRes.data;
@@ -34,7 +32,13 @@ export function ThemeManagement() {
             const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
             const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, now.getDate());
 
-            const themeData = themesRes.data.map(theme => {
+            // If selectedBranch is set, filter. Else show all.
+            let rawThemes = themesRes.data;
+            if (selectedBranch) {
+                rawThemes = rawThemes.filter(t => t.branch_id === selectedBranch.id);
+            }
+
+            const themeData = rawThemes.map(theme => {
                 const txs = allTxs.filter(t => t.theme_id === theme.id && t.status === 'done');
                 const sessionsTotal = txs.length;
                 const revenueTotal = txs.reduce((sum, t) => sum + Number(t.total || 0), 0);
@@ -54,6 +58,7 @@ export function ThemeManagement() {
                     price: Number(theme.price) || 0, 
                     active: theme.active !== false,
                     status: theme.active !== false ? 'Active' : 'Inactive',
+                    branch_id: theme.branch_id,
                     sessionsTotal,
                     revenueTotal,
                     trend
@@ -75,15 +80,25 @@ export function ThemeManagement() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const payload = { name: formData.name, max_people: formData.maxPeople, duration: formData.duration, price: formData.price, active: formData.active };
+            const payload = { 
+                name: formData.name, 
+                max_people: formData.maxPeople, 
+                duration: formData.duration, 
+                price: formData.price, 
+                active: formData.active,
+                branch_id: selectedBranch ? selectedBranch.id : formData.branchId,
+                branchId: selectedBranch ? selectedBranch.id : formData.branchId
+            };
+            
             if (editingId) {
+                if (payload.id) delete payload.id;
                 await api.put(`/studio/themes/${editingId}`, payload);
             } else {
                 await api.post('/studio/themes', payload);
             }
             setShowForm(false);
             setEditingId(null);
-            setFormData({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true });
+            setFormData({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true, branchId: null });
             fetchData();
         } catch (err) {
             alert('Failed to save theme: ' + (err.response?.data?.error || err.message));
@@ -94,7 +109,14 @@ export function ThemeManagement() {
 
     const handleEdit = (theme) => {
         setEditingId(theme.id);
-        setFormData({ name: theme.name, maxPeople: theme.maxPeople, duration: theme.duration, price: theme.price, active: theme.status === 'Active' });
+        setFormData({ 
+            name: theme.name, 
+            maxPeople: theme.maxPeople, 
+            duration: theme.duration, 
+            price: theme.price, 
+            active: theme.status === 'Active',
+            branchId: theme.branchId || theme.branch_id || null
+        });
         setShowForm(true);
     };
 
@@ -106,6 +128,53 @@ export function ThemeManagement() {
         } catch (err) {
             alert('Failed to delete');
         }
+    };
+
+    const handleDuplicate = async (theme) => {
+        if (!confirm(`Duplicate "${theme.name}"?`)) return;
+        try {
+            const payload = {
+                name: `${theme.name} (Copy)`,
+                max_people: theme.maxPeople,
+                duration: theme.duration,
+                price: theme.price,
+                active: theme.active !== false,
+                branch_id: theme.branchId || theme.branch_id || (selectedBranch ? selectedBranch.id : null),
+                branchId: theme.branchId || theme.branch_id || (selectedBranch ? selectedBranch.id : null)
+            };
+            await api.post('/studio/themes', payload);
+            fetchData();
+        } catch (err) {
+            alert('Failed to duplicate');
+        }
+    };
+
+    const handleDuplicateAll = async () => {
+        if (!confirm('Duplicate ALL items displayed here?')) return;
+        setLoading(true);
+        try {
+            for (const theme of filteredThemes) {
+                const payload = {
+                    name: `${theme.name} (Copy)`,
+                    max_people: theme.maxPeople,
+                    duration: theme.duration,
+                    price: theme.price,
+                    active: theme.active !== false,
+                    branch_id: theme.branchId || theme.branch_id || (selectedBranch ? selectedBranch.id : null),
+                    branchId: theme.branchId || theme.branch_id || (selectedBranch ? selectedBranch.id : null)
+                };
+                await api.post('/studio/themes', payload);
+            }
+            fetchData();
+        } catch (err) {
+            alert('Error during bulk duplication');
+            fetchData();
+        }
+    };
+
+    const getBranchName = (bId) => {
+        const branch = branches.find(b => b.id === bId);
+        return branch ? branch.name : 'Unknown';
     };
 
     const filteredThemes = themes.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -136,7 +205,14 @@ export function ThemeManagement() {
                     <h2 className="text-3xl font-bold tracking-tight">Theme Management</h2>
                     <p className="text-muted-foreground mt-1">Manage photobooth themes and track their performance at {selectedBranch?.name || 'this branch'}.</p>
                 </div>
-                <Button onClick={() => { setEditingId(null); setFormData({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true }); setShowForm(true); }}><Plus className="mr-2 h-4 w-4" /> Add New Theme</Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={handleDuplicateAll} disabled={filteredThemes.length === 0}>
+                        <Copy className="mr-2 h-4 w-4" /> Duplicate All
+                    </Button>
+                    <Button onClick={() => { setEditingId(null); setFormData({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true, branchId: selectedBranch ? selectedBranch.id : null }); setShowForm(true); }}>
+                        <Plus className="mr-2 h-4 w-4" /> Add New Theme
+                    </Button>
+                </div>
             </div>
 
             {showForm && (
@@ -163,6 +239,21 @@ export function ThemeManagement() {
                                 <input type="number" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} />
                             </div>
                         </div>
+                        {!selectedBranch && (
+                            <div className="space-y-1.5 flex flex-col">
+                                <label className="text-sm font-medium">Branch</label>
+                                <select 
+                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" 
+                                    value={formData.branchId || ''} 
+                                    onChange={e => setFormData({...formData, branchId: e.target.value ? Number(e.target.value) : null})}
+                                >
+                                    <option value="">Select Branch (Global if empty)</option>
+                                    {branches.map(b => (
+                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <div className="flex gap-2 pt-2">
                             <Button onClick={handleSave} disabled={saving || !formData.name}>
                                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -243,6 +334,7 @@ export function ThemeManagement() {
                         <TableHeader className="bg-muted/50">
                             <TableRow>
                                 <TableHead className="font-semibold">Theme Name</TableHead>
+                                {!selectedBranch && <TableHead className="font-semibold">Branch</TableHead>}
                                 <TableHead className="font-semibold">Settings</TableHead>
                                 <TableHead className="font-semibold">Total Sessions</TableHead>
                                 <TableHead className="font-semibold">Trend</TableHead>
@@ -257,6 +349,11 @@ export function ThemeManagement() {
                                         <MonitorPlay className="h-4 w-4 text-primary opacity-70" />
                                         {t.name}
                                     </TableCell>
+                                    {!selectedBranch && (
+                                        <TableCell>
+                                            {t.branchId || t.branch_id ? getBranchName(t.branchId || t.branch_id) : 'Global'}
+                                        </TableCell>
+                                    )}
                                     <TableCell>
                                         <div className="text-xs text-muted-foreground space-y-0.5">
                                             <div><span className="font-medium text-foreground">{t.maxPeople}</span> Max Pax</div>
@@ -282,7 +379,8 @@ export function ThemeManagement() {
                                             {t.status}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right whitespace-nowrap">
+                                        <Button variant="ghost" size="sm" onClick={() => handleDuplicate(t)} title="Duplicate"><Copy className="h-4 w-4 text-muted-foreground" /></Button>
                                         <Button variant="ghost" size="sm" onClick={() => handleEdit(t)}><Pencil className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="sm" onClick={() => handleDelete(t.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                     </TableCell>
@@ -290,7 +388,7 @@ export function ThemeManagement() {
                             ))}
                             {filteredThemes.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                                    <TableCell colSpan={selectedBranch ? 6 : 7} className="text-center py-6 text-muted-foreground">
                                         No themes matched the search.
                                     </TableCell>
                                 </TableRow>

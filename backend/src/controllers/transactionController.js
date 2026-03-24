@@ -1,5 +1,5 @@
 const { db } = require('../config/db');
-const { transactions, queues, themes } = require('../db/schema');
+const { transactions, queues, themes, shifts } = require('../db/schema');
 const { eq, and, desc, gte, lte, or } = require('drizzle-orm');
 const { emitQueueUpdate } = require('../socket');
 
@@ -17,6 +17,11 @@ exports.getAllTransactions = async (req, res) => {
     // Branch filter
     if (req.branchFilter) {
       conditions.push(eq(transactions.branchId, req.branchFilter));
+    }
+
+    // Shift filter (essential for Daily Cash page)
+    if (req.query.shift_id) {
+      conditions.push(eq(transactions.shiftId, parseInt(req.query.shift_id)));
     }
 
     // Date from filter

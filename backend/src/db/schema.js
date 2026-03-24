@@ -57,12 +57,13 @@ const themes = pgTable('Theme', {
 // ── Packages ───────────────────────────────────────────
 const packages = pgTable('Package', {
   id: serial('id').primaryKey(),
-  slug: text('slug').notNull().unique(),
+  slug: text('slug').notNull(),
   label: text('label').notNull(),
   price: doublePrecision('price').notNull(),
   description: text('description'),
   prints: integer('prints').default(0),
   active: boolean('active').default(true).notNull(),
+  branchId: integer('branch_id').references(() => branches.id),
 });
 
 // ── Addons ─────────────────────────────────────────────
@@ -71,6 +72,7 @@ const addons = pgTable('Addon', {
   label: text('label').notNull(),
   price: doublePrecision('price').notNull(),
   active: boolean('active').default(true).notNull(),
+  branchId: integer('branch_id').references(() => branches.id),
 });
 
 // ── Cafe Snacks ────────────────────────────────────────
@@ -79,6 +81,7 @@ const cafeSnacks = pgTable('CafeSnack', {
   label: text('label').notNull(),
   price: doublePrecision('price').notNull(),
   active: boolean('active').default(true).notNull(),
+  branchId: integer('branch_id').references(() => branches.id),
 });
 
 // ── Promos ─────────────────────────────────────────────
@@ -88,6 +91,7 @@ const promos = pgTable('Promo', {
   discount: doublePrecision('discount').notNull(),
   type: text('type').notNull(),
   active: boolean('active').default(true).notNull(),
+  branchId: integer('branch_id').references(() => branches.id),
 });
 
 // ── Shifts ─────────────────────────────────────────────

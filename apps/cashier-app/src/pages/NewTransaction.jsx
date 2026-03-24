@@ -146,6 +146,7 @@ export default function NewTransaction() {
                 // Also run local processPayment to update counters (but don't resend to backend)
                 processPayment();
                 setCompletedTx({ ...res.data.all_sessions[0], all_sessions: res.data.all_sessions });
+                resetBuilder();
                 useStore.getState().refreshTransactions();
             } else {
                 setTxError('Transaction failed. Please try again.');

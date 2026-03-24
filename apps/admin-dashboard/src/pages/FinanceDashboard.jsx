@@ -68,7 +68,7 @@ function StatCard({ title, value, subtext, icon: Icon, trend, colorClass = 'text
 
 export function FinanceDashboard() {
     const { selectedBranch } = useBranch();
-    const [dateRange, setDateRange] = useState('Today');
+    const [dateRange, setDateRange] = useState('30 Days');
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showTargetModal, setShowTargetModal] = useState(false);
@@ -130,8 +130,8 @@ export function FinanceDashboard() {
             if (rangeObj.to) params.append('date_to', rangeObj.to);
 
             const { data } = await api.get(`/transactions?${params}`);
-            // Only consider 'done' transactions for finance 
-            setTransactions(data.filter(t => t.status === 'done'));
+            // Consider all non-cancelled transactions for finance since payment is upfront
+            setTransactions(data.filter(t => t.status !== 'cancelled'));
         } catch (err) {
             console.error(err);
         } finally {

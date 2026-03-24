@@ -8,101 +8,95 @@ import { cn } from '../lib/utils';
 import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
 
-export function PackageManagement() {
+export function CafeSnackManagement() {
     const { selectedBranch, branches } = useBranch();
-    const [packages, setPackages] = useState([]);
+    const [snacks, setSnacks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [editingId, setEditingId] = useState(null);
-    const [formData, setFormData] = useState({ label: '', price: '', description: '', active: true, branchId: null });
+    const [formData, setFormData] = useState({ label: '', price: '', active: true, branchId: null });
     const [showForm, setShowForm] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    const fetchPackages = useCallback(async () => {
+    const fetchSnacks = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await api.get(selectedBranch ? `/studio/packages?branchId=${selectedBranch.id}` : '/studio/packages');
+            const res = await api.get(selectedBranch ? `/studio/cafe-snacks?branchId=${selectedBranch.id}` : '/studio/cafe-snacks');
+            // If branch selected, maybe API still returns all? We should filter locally to be safe.
             const data = res.data || [];
             if (selectedBranch) {
-                setPackages(data.filter(p => p.branch_id === selectedBranch.id || p.branchId === selectedBranch.id));
+                setSnacks(data.filter(s => s.branch_id === selectedBranch.id || s.branchId === selectedBranch.id));
             } else {
-                setPackages(data);
+                setSnacks(data);
             }
         } catch (err) {
-            console.error('Failed to load packages', err);
+            console.error('Failed to load cafe snacks', err);
         } finally {
             setLoading(false);
         }
     }, [selectedBranch]);
 
-    useEffect(() => { fetchPackages(); }, [fetchPackages]);
-
-    const generateSlug = (label) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    useEffect(() => { fetchSnacks(); }, [fetchSnacks]);
 
     const handleSave = async () => {
         setSaving(true);
         try {
             const payload = {
                 ...formData,
-                slug: generateSlug(formData.label),
                 branchId: selectedBranch ? selectedBranch.id : formData.branchId,
-                branch_id: selectedBranch ? selectedBranch.id : formData.branchId
+                branch_id: selectedBranch ? selectedBranch.id : formData.branchId // some backends prefer snake_case
             };
 
             if (editingId) {
                 if (payload.id) delete payload.id;
-                await api.put(`/studio/packages/${editingId}`, payload);
+                await api.put(`/studio/cafe-snacks/${editingId}`, payload);
             } else {
-                await api.post('/studio/packages', payload);
+                await api.post('/studio/cafe-snacks', payload);
             }
             setShowForm(false);
             setEditingId(null);
-            setFormData({ label: '', price: '', description: '', active: true, branchId: null });
-            fetchPackages();
+            setFormData({ label: '', price: '', active: true, branchId: null });
+            fetchSnacks();
         } catch (err) {
-            alert('Failed to save package: ' + (err.response?.data?.error || err.message));
+            alert('Failed to save snack: ' + (err.response?.data?.error || err.message));
         } finally {
             setSaving(false);
         }
     };
 
-    const handleEdit = (pkg) => {
-        setEditingId(pkg.id);
+    const handleEdit = (snack) => {
+        setEditingId(snack.id);
         setFormData({ 
-            label: pkg.label, 
-            price: pkg.price, 
-            description: pkg.description || '', 
-            active: pkg.active !== false,
-            branchId: pkg.branchId || pkg.branch_id || null
+            label: snack.label, 
+            price: snack.price, 
+            active: snack.active !== false,
+            branchId: snack.branchId || snack.branch_id || null
         });
         setShowForm(true);
     };
 
     const handleDelete = async (id) => {
-        if (!confirm('Delete this package?')) return;
+        if (!confirm('Delete this item?')) return;
         try {
-            await api.delete(`/studio/packages/${id}`);
-            fetchPackages();
+            await api.delete(`/studio/cafe-snacks/${id}`);
+            fetchSnacks();
         } catch (err) {
             alert('Failed to delete');
         }
     };
 
-    const handleDuplicate = async (pkg) => {
-        if (!confirm(`Duplicate "${pkg.label}"?`)) return;
+    const handleDuplicate = async (snack) => {
+        if (!confirm(`Duplicate "${snack.label}"?`)) return;
         try {
-            const newLabel = `${pkg.label} (Copy)`;
             const payload = {
-                label: newLabel,
-                price: pkg.price,
-                description: pkg.description,
-                slug: generateSlug(newLabel) + '-' + Date.now().toString().slice(-4), // ensure uniqueness if needed
-                active: pkg.active,
-                branchId: pkg.branchId || pkg.branch_id || (selectedBranch ? selectedBranch.id : null),
-                branch_id: pkg.branchId || pkg.branch_id || (selectedBranch ? selectedBranch.id : null)
+                label: `${snack.label} (Copy)`,
+                price: snack.price,
+                active: snack.active,
+                branchId: snack.branchId || snack.branch_id || (selectedBranch ? selectedBranch.id : null),
+                branch_id: snack.branchId || snack.branch_id || (selectedBranch ? selectedBranch.id : null)
             };
-            await api.post('/studio/packages', payload);
-            fetchPackages();
+            await api.post('/studio/cafe-snacks', payload);
+            fetchSnacks();
         } catch (err) {
             alert('Failed to duplicate');
         }
@@ -112,27 +106,24 @@ export function PackageManagement() {
         if (!confirm('Duplicate ALL items displayed here?')) return;
         setLoading(true);
         try {
-            for (const pkg of filtered) {
-                const newLabel = `${pkg.label} (Copy)`;
+            for (const snack of filtered) {
                 const payload = {
-                    label: newLabel,
-                    price: pkg.price,
-                    description: pkg.description,
-                    slug: generateSlug(newLabel) + '-' + Date.now().toString().slice(-4),
-                    active: pkg.active,
-                    branchId: pkg.branchId || pkg.branch_id || (selectedBranch ? selectedBranch.id : null),
-                    branch_id: pkg.branchId || pkg.branch_id || (selectedBranch ? selectedBranch.id : null)
+                    label: `${snack.label} (Copy)`,
+                    price: snack.price,
+                    active: snack.active,
+                    branchId: snack.branchId || snack.branch_id || (selectedBranch ? selectedBranch.id : null),
+                    branch_id: snack.branchId || snack.branch_id || (selectedBranch ? selectedBranch.id : null)
                 };
-                await api.post('/studio/packages', payload);
+                await api.post('/studio/cafe-snacks', payload);
             }
-            fetchPackages();
+            fetchSnacks();
         } catch (err) {
             alert('Error during bulk duplication');
-            fetchPackages();
+            fetchSnacks();
         }
     };
 
-    const filtered = packages.filter(p => p.label?.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filtered = snacks.filter(p => p.label?.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const getBranchName = (bId) => {
         const branch = branches.find(b => b.id === bId);
@@ -151,17 +142,17 @@ export function PackageManagement() {
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Package Management</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">Cafe & Snacks</h2>
                     <p className="text-muted-foreground mt-1">
-                        {selectedBranch ? `Manage packages for ${selectedBranch.name}` : 'Manage packages across all branches'}
+                        {selectedBranch ? `Manage snacks for ${selectedBranch.name}` : 'Manage snacks across all branches'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" onClick={handleDuplicateAll} disabled={filtered.length === 0}>
                         <Copy className="mr-2 h-4 w-4" /> Duplicate All
                     </Button>
-                    <Button onClick={() => { setEditingId(null); setFormData({ label: '', price: '', description: '', active: true, branchId: selectedBranch ? selectedBranch.id : null }); setShowForm(true); }}>
-                        <Plus className="mr-2 h-4 w-4" /> Add Package
+                    <Button onClick={() => { setEditingId(null); setFormData({ label: '', price: '', active: true, branchId: selectedBranch ? selectedBranch.id : null }); setShowForm(true); }}>
+                        <Plus className="mr-2 h-4 w-4" /> Add Item
                     </Button>
                 </div>
             </div>
@@ -169,22 +160,18 @@ export function PackageManagement() {
             {showForm && (
                 <Card className="border-primary/30">
                     <CardHeader className="pb-4">
-                        <CardTitle>{editingId ? 'Edit Package' : 'New Package'}</CardTitle>
+                        <CardTitle>{editingId ? 'Edit Item' : 'New Item'}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium">Name</label>
-                                <input className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.label} onChange={e => setFormData({...formData, label: e.target.value})} placeholder="Package name" />
+                                <input className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.label} onChange={e => setFormData({...formData, label: e.target.value})} placeholder="e.g. Iced Coffee" />
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium">Price (Rp)</label>
                                 <input type="number" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} placeholder="0" />
                             </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="text-sm font-medium">Description</label>
-                            <input className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Optional description" />
                         </div>
                         {!selectedBranch && (
                             <div className="space-y-1.5 flex flex-col">
@@ -217,7 +204,7 @@ export function PackageManagement() {
             <Card>
                 <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b">
                     <div>
-                        <CardTitle>All Packages ({packages.length})</CardTitle>
+                        <CardTitle>All Items ({snacks.length})</CardTitle>
                     </div>
                     <div className="relative max-w-xs w-full">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -230,36 +217,34 @@ export function PackageManagement() {
                             <TableRow>
                                 <TableHead className="font-semibold">Name</TableHead>
                                 <TableHead className="font-semibold">Price</TableHead>
-                                <TableHead className="font-semibold">Description</TableHead>
                                 {!selectedBranch && <TableHead className="font-semibold">Branch</TableHead>}
                                 <TableHead className="font-semibold">Status</TableHead>
                                 <TableHead className="text-right font-semibold">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filtered.map(pkg => (
-                                <TableRow key={pkg.id} className="hover:bg-muted/50">
-                                    <TableCell className="font-medium">{pkg.label}</TableCell>
-                                    <TableCell>Rp {Number(pkg.price).toLocaleString('id-ID')}</TableCell>
-                                    <TableCell className="text-muted-foreground">{pkg.description || '—'}</TableCell>
+                            {filtered.map(snack => (
+                                <TableRow key={snack.id} className="hover:bg-muted/50">
+                                    <TableCell className="font-medium">{snack.label}</TableCell>
+                                    <TableCell>Rp {Number(snack.price).toLocaleString('id-ID')}</TableCell>
                                     {!selectedBranch && (
                                         <TableCell>
-                                            {pkg.branchId || pkg.branch_id ? getBranchName(pkg.branchId || pkg.branch_id) : 'Global'}
+                                            {snack.branchId || snack.branch_id ? getBranchName(snack.branchId || snack.branch_id) : 'Global'}
                                         </TableCell>
                                     )}
                                     <TableCell>
-                                        <Badge variant={pkg.active !== false ? 'success' : 'secondary'}>{pkg.active !== false ? 'Active' : 'Inactive'}</Badge>
+                                        <Badge variant={snack.active !== false ? 'success' : 'secondary'}>{snack.active !== false ? 'Active' : 'Inactive'}</Badge>
                                     </TableCell>
-                                    <TableCell className="text-right whitespace-nowrap">
-                                        <Button variant="ghost" size="sm" onClick={() => handleDuplicate(pkg)} title="Duplicate"><Copy className="h-4 w-4 text-muted-foreground" /></Button>
-                                        <Button variant="ghost" size="sm" onClick={() => handleEdit(pkg)}><Pencil className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(pkg.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="sm" onClick={() => handleDuplicate(snack)} title="Duplicate"><Copy className="h-4 w-4 text-muted-foreground" /></Button>
+                                        <Button variant="ghost" size="sm" onClick={() => handleEdit(snack)}><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(snack.id)} className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
                             {filtered.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={selectedBranch ? 5 : 6} className="text-center py-8 text-muted-foreground">No packages found.</TableCell>
+                                    <TableCell colSpan={selectedBranch ? 4 : 5} className="text-center py-8 text-muted-foreground">No items found.</TableCell>
                                 </TableRow>
                             )}
                         </TableBody>

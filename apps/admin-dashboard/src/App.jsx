@@ -11,6 +11,7 @@ import { PrintRequests } from './pages/PrintRequests';
 import { ThemeManagement } from './pages/ThemeManagement';
 import { PackageManagement } from './pages/PackageManagement';
 import { PromoManagement } from './pages/PromoManagement';
+import { CafeSnackManagement } from './pages/CafeSnackManagement';
 import { BoothManagement } from './pages/BoothManagement';
 import { UserManagement } from './pages/UserManagement';
 import { Reports } from './pages/Reports';
@@ -65,6 +66,7 @@ function App() {
             <Route path="prints" element={<PrintRequests />} />
             <Route path="themes" element={<ThemeManagement />} />
             <Route path="packages" element={<PackageManagement />} />
+            <Route path="cafe-snacks" element={<CafeSnackManagement />} />
             <Route path="promos" element={<PromoManagement />} />
             <Route path="booths-manage" element={<BoothManagement />} />
             <Route path="users" element={<UserManagement />} />

@@ -29,14 +29,16 @@ export function BranchProvider({ children }) {
     setSelectedBranch(branch);
   };
 
+  const value = React.useMemo(() => ({
+    branches,
+    selectedBranch,
+    selectBranch,
+    refreshBranches: fetchBranches,
+    loading,
+  }), [branches, selectedBranch, loading]);
+
   return (
-    <BranchContext.Provider value={{
-      branches,
-      selectedBranch,
-      selectBranch,
-      refreshBranches: fetchBranches,
-      loading,
-    }}>
+    <BranchContext.Provider value={value}>
       {children}
     </BranchContext.Provider>
   );

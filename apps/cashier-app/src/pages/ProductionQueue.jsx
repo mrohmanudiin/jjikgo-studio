@@ -26,6 +26,14 @@ export default function ProductionQueue() {
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [themeFilter, setThemeFilter] = useState('ALL');
     const [confirmingPrint, setConfirmingPrint] = useState(null);
+    const [loading, setLoading] = useState(true);
+    
+    const refreshTransactions = useStore((s) => s.refreshTransactions);
+
+    React.useEffect(() => {
+        setLoading(true);
+        refreshTransactions().finally(() => setLoading(false));
+    }, [refreshTransactions]);
 
     const handleConfirmPrint = async (id) => {
         setConfirmingPrint(id);
@@ -44,6 +52,14 @@ export default function ProductionQueue() {
     ORDER_STATUSES.forEach((s) => {
         counts[s] = txList.filter((t) => t.order_status === s).length;
     });
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '100px 0', color: '#8E8E93' }}>
+                Loading queue data...
+            </div>
+        );
+    }
 
     return (
         <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

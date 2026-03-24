@@ -14,6 +14,7 @@ import {
     Package,
     Tag,
     ListOrdered,
+    Coffee,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/Button';
@@ -42,6 +43,7 @@ export function Sidebar({ onClose }) {
             items: [
                 { name: 'Themes', path: '/themes', icon: Palette },
                 { name: 'Packages', path: '/packages', icon: Package },
+                { name: 'Cafe & Snacks', path: '/cafe-snacks', icon: Coffee },
                 { name: 'Promos', path: '/promos', icon: Tag },
                 { name: 'Users', path: '/users', icon: Users },
             ]

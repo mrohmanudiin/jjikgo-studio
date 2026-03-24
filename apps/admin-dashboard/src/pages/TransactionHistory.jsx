@@ -71,7 +71,7 @@ export function TransactionHistory() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [range, setRange] = useState('today');
+  const [range, setRange] = useState('month');
   const [customFrom, setCustomFrom] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [customTo, setCustomTo] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [sortKey, setSortKey] = useState('created_at');
