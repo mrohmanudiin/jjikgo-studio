@@ -7,6 +7,7 @@ import { Plus, Search, Loader2, Pencil, Trash2, X, Save, Copy } from 'lucide-rea
 import { cn } from '../lib/utils';
 import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
+import { DuplicateToBranchModal } from '../components/DuplicateToBranchModal';
 
 export function CafeSnackManagement() {
     const { selectedBranch, branches } = useBranch();
@@ -17,6 +18,7 @@ export function CafeSnackManagement() {
     const [formData, setFormData] = useState({ label: '', price: '', active: true, branchId: null });
     const [showForm, setShowForm] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [dupModal, setDupModal] = useState({ open: false, label: '', items: [], sourceBranchId: null });
 
     const fetchSnacks = useCallback(async () => {
         setLoading(true);
@@ -85,42 +87,34 @@ export function CafeSnackManagement() {
         }
     };
 
-    const handleDuplicate = async (snack) => {
-        if (!confirm(`Duplicate "${snack.label}"?`)) return;
-        try {
-            const payload = {
-                label: `${snack.label} (Copy)`,
-                price: snack.price,
-                active: snack.active,
-                branchId: snack.branchId || snack.branch_id || (selectedBranch ? selectedBranch.id : null),
-                branch_id: snack.branchId || snack.branch_id || (selectedBranch ? selectedBranch.id : null)
-            };
-            await api.post('/studio/cafe-snacks', payload);
-            fetchSnacks();
-        } catch (err) {
-            alert('Failed to duplicate');
-        }
+    const openDupModal = (items, label, sourceBranchId) => {
+        setDupModal({ open: true, label, items, sourceBranchId: sourceBranchId ?? null });
     };
 
-    const handleDuplicateAll = async () => {
-        if (!confirm('Duplicate ALL items displayed here?')) return;
-        setLoading(true);
-        try {
-            for (const snack of filtered) {
+    const handleDuplicate = (snack) => {
+        openDupModal([snack], `Item: ${snack.label}`, snack.branchId || snack.branch_id || (selectedBranch?.id ?? null));
+    };
+
+    const handleDuplicateAll = () => {
+        if (filtered.length === 0) return;
+        const srcId = selectedBranch?.id ?? (filtered[0]?.branch_id ?? null);
+        openDupModal(filtered, `${filtered.length} item${filtered.length !== 1 ? 's' : ''}`, srcId);
+    };
+
+    const executeDuplicate = async (targetBranchIds) => {
+        for (const snack of dupModal.items) {
+            for (const branchId of targetBranchIds) {
                 const payload = {
                     label: `${snack.label} (Copy)`,
                     price: snack.price,
                     active: snack.active,
-                    branchId: snack.branchId || snack.branch_id || (selectedBranch ? selectedBranch.id : null),
-                    branch_id: snack.branchId || snack.branch_id || (selectedBranch ? selectedBranch.id : null)
+                    branchId,
+                    branch_id: branchId
                 };
                 await api.post('/studio/cafe-snacks', payload);
             }
-            fetchSnacks();
-        } catch (err) {
-            alert('Error during bulk duplication');
-            fetchSnacks();
         }
+        fetchSnacks();
     };
 
     const filtered = snacks.filter(p => p.label?.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -139,6 +133,7 @@ export function CafeSnackManagement() {
     }
 
     return (
+        <>
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -252,5 +247,15 @@ export function CafeSnackManagement() {
                 </CardContent>
             </Card>
         </div>
+
+        <DuplicateToBranchModal
+            open={dupModal.open}
+            onClose={() => setDupModal(m => ({ ...m, open: false }))}
+            itemLabel={dupModal.label}
+            branches={branches}
+            sourceBranchId={dupModal.sourceBranchId}
+            onConfirm={executeDuplicate}
+        />
+        </>
     );
 }

@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
+import { DuplicateToBranchModal } from '../components/DuplicateToBranchModal';
 
 export function ThemeManagement() {
     const { selectedBranch, branches } = useBranch();
@@ -18,6 +19,7 @@ export function ThemeManagement() {
     const [formData, setFormData] = useState({ name: '', maxPeople: 2, duration: 15, price: 35000, active: true, branchId: null });
     const [showForm, setShowForm] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [dupModal, setDupModal] = useState({ open: false, label: '', items: [], sourceBranchId: null });
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -130,46 +132,36 @@ export function ThemeManagement() {
         }
     };
 
-    const handleDuplicate = async (theme) => {
-        if (!confirm(`Duplicate "${theme.name}"?`)) return;
-        try {
-            const payload = {
-                name: `${theme.name} (Copy)`,
-                max_people: theme.maxPeople,
-                duration: theme.duration,
-                price: theme.price,
-                active: theme.active !== false,
-                branch_id: theme.branchId || theme.branch_id || (selectedBranch ? selectedBranch.id : null),
-                branchId: theme.branchId || theme.branch_id || (selectedBranch ? selectedBranch.id : null)
-            };
-            await api.post('/studio/themes', payload);
-            fetchData();
-        } catch (err) {
-            alert('Failed to duplicate');
-        }
+    const openDupModal = (themes, label, sourceBranchId) => {
+        setDupModal({ open: true, label, items: themes, sourceBranchId: sourceBranchId ?? null });
     };
 
-    const handleDuplicateAll = async () => {
-        if (!confirm('Duplicate ALL items displayed here?')) return;
-        setLoading(true);
-        try {
-            for (const theme of filteredThemes) {
+    const handleDuplicate = (theme) => {
+        openDupModal([theme], `Theme: ${theme.name}`, theme.branchId || theme.branch_id || (selectedBranch?.id ?? null));
+    };
+
+    const handleDuplicateAll = () => {
+        if (filteredThemes.length === 0) return;
+        const srcId = selectedBranch?.id ?? (filteredThemes[0]?.branch_id ?? null);
+        openDupModal(filteredThemes, `${filteredThemes.length} theme${filteredThemes.length !== 1 ? 's' : ''}`, srcId);
+    };
+
+    const executeDuplicate = async (targetBranchIds) => {
+        for (const theme of dupModal.items) {
+            for (const branchId of targetBranchIds) {
                 const payload = {
                     name: `${theme.name} (Copy)`,
                     max_people: theme.maxPeople,
                     duration: theme.duration,
                     price: theme.price,
                     active: theme.active !== false,
-                    branch_id: theme.branchId || theme.branch_id || (selectedBranch ? selectedBranch.id : null),
-                    branchId: theme.branchId || theme.branch_id || (selectedBranch ? selectedBranch.id : null)
+                    branch_id: branchId,
+                    branchId
                 };
                 await api.post('/studio/themes', payload);
             }
-            fetchData();
-        } catch (err) {
-            alert('Error during bulk duplication');
-            fetchData();
         }
+        fetchData();
     };
 
     const getBranchName = (bId) => {
@@ -199,6 +191,7 @@ export function ThemeManagement() {
     }
 
     return (
+        <>
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -398,6 +391,16 @@ export function ThemeManagement() {
                 </CardContent>
             </Card>
         </div>
+
+        <DuplicateToBranchModal
+            open={dupModal.open}
+            onClose={() => setDupModal(m => ({ ...m, open: false }))}
+            itemLabel={dupModal.label}
+            branches={branches}
+            sourceBranchId={dupModal.sourceBranchId}
+            onConfirm={executeDuplicate}
+        />
+        </>
     );
 }
 
