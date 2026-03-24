@@ -45,14 +45,15 @@ export function PackageManagement() {
         setSaving(true);
         try {
             const payload = {
-                ...formData,
+                label: formData.label,
+                price: formData.price,
+                description: formData.description,
+                active: formData.active,
                 slug: generateSlug(formData.label),
-                branchId: selectedBranch ? selectedBranch.id : formData.branchId,
-                branch_id: selectedBranch ? selectedBranch.id : formData.branchId
+                branchId: selectedBranch ? selectedBranch.id : formData.branchId
             };
 
             if (editingId) {
-                if (payload.id) delete payload.id;
                 await api.put(`/studio/packages/${editingId}`, payload);
             } else {
                 await api.post('/studio/packages', payload);
@@ -75,7 +76,7 @@ export function PackageManagement() {
             price: pkg.price, 
             description: pkg.description || '', 
             active: pkg.active !== false,
-            branchId: pkg.branchId || pkg.branch_id || null
+            branchId: pkg.branchId || null
         });
         setShowForm(true);
     };
@@ -95,12 +96,12 @@ export function PackageManagement() {
     };
 
     const handleDuplicate = (pkg) => {
-        openDupModal([pkg], `Package: ${pkg.label}`, pkg.branchId || pkg.branch_id || (selectedBranch?.id ?? null));
+        openDupModal([pkg], `Package: ${pkg.label}`, pkg.branchId || (selectedBranch?.id ?? null));
     };
 
     const handleDuplicateAll = () => {
         if (filtered.length === 0) return;
-        const srcId = selectedBranch?.id ?? (filtered[0]?.branch_id ?? null);
+        const srcId = selectedBranch?.id ?? (filtered[0]?.branchId ?? null);
         openDupModal(filtered, `${filtered.length} package${filtered.length !== 1 ? 's' : ''}`, srcId);
     };
 
@@ -113,9 +114,8 @@ export function PackageManagement() {
                     price: pkg.price,
                     description: pkg.description,
                     slug: generateSlug(newLabel) + '-' + Date.now().toString().slice(-4),
-                    active: pkg.active,
-                    branchId,
-                    branch_id: branchId
+                    active: pkg.active !== false,
+                    branchId
                 };
                 await api.post('/studio/packages', payload);
             }

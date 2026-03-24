@@ -36,11 +36,25 @@ export default function App() {
     }
   }, [isAuthenticated, handleLogout]);
 
+  // Read branchId from localStorage to scope API calls
+  const getStoredBranchId = useCallback(() => {
+    try {
+      const storeStr = localStorage.getItem('jjikgo-staff-store');
+      if (storeStr) {
+        const data = JSON.parse(storeStr);
+        return data.state?.branch?.id || null;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    const branchId = getStoredBranchId();
+
     setLoadingThemes(true);
-    fetchThemes()
+    fetchThemes(branchId)
       .then(setThemes)
       .catch((e) => {
         console.error(e);
@@ -59,7 +73,7 @@ export default function App() {
       clearInterval(intervalId);
       socket.off('queueUpdated', refreshQueue);
     };
-  }, [refreshQueue, isAuthenticated, handleLogout]);
+  }, [refreshQueue, isAuthenticated, handleLogout, getStoredBranchId]);
 
   if (!isAuthenticated) {
     return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;

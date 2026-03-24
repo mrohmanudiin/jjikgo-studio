@@ -185,7 +185,8 @@ export default function Dashboard() {
                             // Only count live booth activity statuses
                             const IN_BOOTH_STATUSES = ['waiting', 'called', 'in_session'];
                             const count = (Array.isArray(transactions) ? transactions : []).filter(tx =>
-                                tx.theme_id === theme.id && IN_BOOTH_STATUSES.includes(tx.order_status?.toLowerCase())
+                                (tx.theme_id === theme.id || tx.themeId === theme.id) &&
+                                IN_BOOTH_STATUSES.includes((tx.order_status || tx.status)?.toLowerCase())
                             ).length;
 
                             const themeColor = theme.color || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];

@@ -28,7 +28,12 @@ api.interceptors.request.use((config) => {
         if (storeStr) {
             const { state } = JSON.parse(storeStr);
             if (state?.user?.token) {
-                config.headers.Authorization = `Bearer ${state.user.token}`;
+                // Use set() for Axios >= 1.2.0 (AxiosHeaders) compatibility
+                if (typeof config.headers?.set === 'function') {
+                    config.headers.set('Authorization', `Bearer ${state.user.token}`);
+                } else {
+                    config.headers.Authorization = `Bearer ${state.user.token}`;
+                }
             }
         }
     } catch (e) { }
@@ -58,28 +63,33 @@ export const socket = io(API_URL, {
 });
 
 // Theme helpers
-export const fetchThemes = async () => {
-    const response = await api.get('/studio/themes');
+export const fetchThemes = async (branchId) => {
+    const params = branchId ? `?branchId=${branchId}` : '';
+    const response = await api.get(`/studio/themes${params}`);
     return response.data;
 };
 
-export const fetchPackages = async () => {
-    const response = await api.get('/studio/packages');
+export const fetchPackages = async (branchId) => {
+    const params = branchId ? `?branchId=${branchId}` : '';
+    const response = await api.get(`/studio/packages${params}`);
     return response.data;
 };
 
-export const fetchAddons = async () => {
-    const response = await api.get('/studio/addons');
+export const fetchAddons = async (branchId) => {
+    const params = branchId ? `?branchId=${branchId}` : '';
+    const response = await api.get(`/studio/addons${params}`);
     return response.data;
 };
 
-export const fetchCafeSnacks = async () => {
-    const response = await api.get('/studio/cafe-snacks');
+export const fetchCafeSnacks = async (branchId) => {
+    const params = branchId ? `?branchId=${branchId}` : '';
+    const response = await api.get(`/studio/cafe-snacks${params}`);
     return response.data;
 };
 
-export const fetchPromos = async () => {
-    const response = await api.get('/studio/promos');
+export const fetchPromos = async (branchId) => {
+    const params = branchId ? `?branchId=${branchId}` : '';
+    const response = await api.get(`/studio/promos${params}`);
     return response.data;
 };
 

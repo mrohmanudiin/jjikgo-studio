@@ -26,7 +26,11 @@ api.interceptors.request.use((config) => {
         if (storeStr) {
             const { user } = JSON.parse(storeStr);
             if (user?.token) {
-                config.headers.Authorization = `Bearer ${user.token}`;
+                if (config.headers && typeof config.headers.set === 'function') {
+                    config.headers.set('Authorization', `Bearer ${user.token}`);
+                } else {
+                    config.headers.Authorization = `Bearer ${user.token}`;
+                }
             }
         }
     } catch (e) {}

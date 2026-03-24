@@ -43,12 +43,13 @@ export function PromoManagement() {
         setSaving(true);
         try {
             const payload = {
-                ...formData,
-                branchId: selectedBranch ? selectedBranch.id : formData.branchId,
-                branch_id: selectedBranch ? selectedBranch.id : formData.branchId
+                label: formData.label,
+                discount: formData.discount,
+                type: formData.type,
+                active: formData.active,
+                branchId: selectedBranch ? selectedBranch.id : formData.branchId
             };
             if (editingId) {
-                if(payload.id) delete payload.id;
                 await api.put(`/studio/promos/${editingId}`, payload);
             } else {
                 await api.post('/studio/promos', payload);
@@ -71,7 +72,7 @@ export function PromoManagement() {
             discount: promo.discount, 
             type: promo.type, 
             active: promo.active !== false,
-            branchId: promo.branchId || promo.branch_id || null
+            branchId: promo.branchId || null
         });
         setShowForm(true);
     };
@@ -91,12 +92,12 @@ export function PromoManagement() {
     };
 
     const handleDuplicate = (promo) => {
-        openDupModal([promo], `Promo: ${promo.label}`, promo.branchId || promo.branch_id || (selectedBranch?.id ?? null));
+        openDupModal([promo], `Promo: ${promo.label}`, promo.branchId || (selectedBranch?.id ?? null));
     };
 
     const handleDuplicateAll = () => {
         if (filtered.length === 0) return;
-        const srcId = selectedBranch?.id ?? (filtered[0]?.branch_id ?? null);
+        const srcId = selectedBranch?.id ?? (filtered[0]?.branchId ?? null);
         openDupModal(filtered, `${filtered.length} promo${filtered.length !== 1 ? 's' : ''}`, srcId);
     };
 
@@ -107,9 +108,8 @@ export function PromoManagement() {
                     label: `${promo.label} (Copy)`,
                     discount: promo.discount,
                     type: promo.type,
-                    active: promo.active,
-                    branchId,
-                    branch_id: branchId
+                    active: promo.active !== false,
+                    branchId
                 };
                 await api.post('/studio/promos', payload);
             }

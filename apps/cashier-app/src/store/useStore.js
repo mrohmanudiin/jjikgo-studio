@@ -71,12 +71,14 @@ export const useStore = create(
             refreshMasterData: async () => {
                 try {
                     const { fetchThemes, fetchPackages, fetchAddons, fetchCafeSnacks, fetchPromos } = await import('../utils/api');
+                    // Scope all master data to the current branch
+                    const branchId = get().branch?.id || null;
                     const [t, p, a, c, pr] = await Promise.all([
-                        fetchThemes(),
-                        fetchPackages(),
-                        fetchAddons(),
-                        fetchCafeSnacks(),
-                        fetchPromos()
+                        fetchThemes(branchId),
+                        fetchPackages(branchId),
+                        fetchAddons(branchId),
+                        fetchCafeSnacks(branchId),
+                        fetchPromos(branchId)
                     ]);
                     set({ themes: t, packages: p, addons: a, cafeSnacks: c, promos: pr });
                 } catch (err) {

@@ -37,30 +37,30 @@ export function ThemeManagement() {
             // If selectedBranch is set, filter. Else show all.
             let rawThemes = themesRes.data;
             if (selectedBranch) {
-                rawThemes = rawThemes.filter(t => t.branch_id === selectedBranch.id);
+                rawThemes = rawThemes.filter(t => t.branchId === selectedBranch.id || t.branch_id === selectedBranch.id);
             }
 
             const themeData = rawThemes.map(theme => {
-                const txs = allTxs.filter(t => t.theme_id === theme.id && t.status === 'done');
+                const txs = allTxs.filter(t => (t.themeId === theme.id || t.theme_id === theme.id) && t.status === 'done');
                 const sessionsTotal = txs.length;
-                const revenueTotal = txs.reduce((sum, t) => sum + Number(t.total || 0), 0);
+                const revenueTotal = txs.reduce((sum, t) => sum + Number(t.totalPrice || t.total || 0), 0);
                 
-                const currentMonthTxs = txs.filter(t => new Date(t.created_at) >= lastMonth);
-                const previousMonthTxs = txs.filter(t => new Date(t.created_at) >= twoMonthsAgo && new Date(t.created_at) < lastMonth);
+                const currentMonthTxs = txs.filter(t => new Date(t.createdAt || t.created_at) >= lastMonth);
+                const previousMonthTxs = txs.filter(t => new Date(t.createdAt || t.created_at) >= twoMonthsAgo && new Date(t.createdAt || t.created_at) < lastMonth);
 
-                const currentRev = currentMonthTxs.reduce((sum, t) => sum + Number(t.total || 0), 0);
-                const prevRev = previousMonthTxs.reduce((sum, t) => sum + Number(t.total || 0), 0);
+                const currentRev = currentMonthTxs.reduce((sum, t) => sum + Number(t.totalPrice || t.total || 0), 0);
+                const prevRev = previousMonthTxs.reduce((sum, t) => sum + Number(t.totalPrice || t.total || 0), 0);
                 const trend = prevRev === 0 ? (currentRev > 0 ? 100 : 0) : Math.round(((currentRev - prevRev) / prevRev) * 100);
 
                 return {
                     id: theme.id,
                     name: theme.name,
-                    maxPeople: parseInt(theme.max_people || theme.maxPeople || 2),
+                    maxPeople: parseInt(theme.maxCapacity || theme.max_people || theme.maxPeople || 2),
                     duration: theme.duration || 15,
                     price: Number(theme.price) || 0, 
                     active: theme.active !== false,
                     status: theme.active !== false ? 'Active' : 'Inactive',
-                    branch_id: theme.branch_id,
+                    branchId: theme.branchId || theme.branch_id,
                     sessionsTotal,
                     revenueTotal,
                     trend
@@ -84,16 +84,13 @@ export function ThemeManagement() {
         try {
             const payload = { 
                 name: formData.name, 
-                max_people: formData.maxPeople, 
-                duration: formData.duration, 
+                maxCapacity: formData.maxPeople, 
                 price: formData.price, 
                 active: formData.active,
-                branch_id: selectedBranch ? selectedBranch.id : formData.branchId,
                 branchId: selectedBranch ? selectedBranch.id : formData.branchId
             };
             
             if (editingId) {
-                if (payload.id) delete payload.id;
                 await api.put(`/studio/themes/${editingId}`, payload);
             } else {
                 await api.post('/studio/themes', payload);
@@ -117,7 +114,7 @@ export function ThemeManagement() {
             duration: theme.duration, 
             price: theme.price, 
             active: theme.status === 'Active',
-            branchId: theme.branchId || theme.branch_id || null
+            branchId: theme.branchId || null
         });
         setShowForm(true);
     };
@@ -137,12 +134,12 @@ export function ThemeManagement() {
     };
 
     const handleDuplicate = (theme) => {
-        openDupModal([theme], `Theme: ${theme.name}`, theme.branchId || theme.branch_id || (selectedBranch?.id ?? null));
+        openDupModal([theme], `Theme: ${theme.name}`, theme.branchId || (selectedBranch?.id ?? null));
     };
 
     const handleDuplicateAll = () => {
         if (filteredThemes.length === 0) return;
-        const srcId = selectedBranch?.id ?? (filteredThemes[0]?.branch_id ?? null);
+        const srcId = selectedBranch?.id ?? (filteredThemes[0]?.branchId ?? null);
         openDupModal(filteredThemes, `${filteredThemes.length} theme${filteredThemes.length !== 1 ? 's' : ''}`, srcId);
     };
 
@@ -151,12 +148,10 @@ export function ThemeManagement() {
             for (const branchId of targetBranchIds) {
                 const payload = {
                     name: `${theme.name} (Copy)`,
-                    max_people: theme.maxPeople,
-                    duration: theme.duration,
+                    maxCapacity: theme.maxPeople,
                     price: theme.price,
                     active: theme.active !== false,
-                    branch_id: branchId,
-                    branchId
+                    branchId: branchId
                 };
                 await api.post('/studio/themes', payload);
             }

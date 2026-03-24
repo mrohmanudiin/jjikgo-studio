@@ -279,6 +279,15 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
     const [toast, setToast] = useState('');
     const toastTimer = useRef(null);
 
+    // Read branch name from localStorage for display
+    const branchName = (() => {
+        try {
+            const s = localStorage.getItem('jjikgo-staff-store');
+            if (s) return JSON.parse(s)?.state?.branch?.name || null;
+        } catch { /* ignore */ }
+        return null;
+    })();
+
     const myQueues = (queueData || {})[theme.name] || [];
     const activeQueue = myQueues.find(q => ['called', 'in_session'].includes(q.status?.toLowerCase())) || null;
     const waitingQueues = myQueues.filter(q => q.status?.toLowerCase() === 'waiting');
@@ -342,6 +351,15 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                             onError={e => { e.target.style.display = 'none'; }}
                         />
                         <span className="topbar-brand-dot" />
+                        {branchName && (
+                            <span style={{
+                                fontSize: 11, fontWeight: 700, color: 'var(--text-s)',
+                                letterSpacing: '0.06em', textTransform: 'uppercase',
+                                opacity: 0.7, marginLeft: 2
+                            }}>
+                                {branchName}
+                            </span>
+                        )}
                     </div>
 
                     <div className="topbar-station-pill">
@@ -358,6 +376,11 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                         Switch Booth
                     </button>
                     <button className="topbar-btn" onClick={onLogout} style={{ color: 'var(--accent-rose)', borderColor: 'rgba(244,63,94,0.2)' }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <polyline points="16 17 21 12 16 7"/>
+                            <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
                         Sign Out
                     </button>
                 </header>

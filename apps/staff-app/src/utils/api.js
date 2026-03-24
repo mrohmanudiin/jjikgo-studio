@@ -24,12 +24,16 @@ api.interceptors.request.use((config) => {
     try {
         const storeStr = localStorage.getItem('jjikgo-staff-store');
         if (storeStr) {
-            // Staff app store might be different structure
             try {
                 const data = JSON.parse(storeStr);
                 const token = data.token || data.state?.user?.token;
                 if (token) {
-                    config.headers.Authorization = `Bearer ${token}`;
+                    // Use set() for Axios >= 1.2.0 (AxiosHeaders) compatibility
+                    if (typeof config.headers?.set === 'function') {
+                        config.headers.set('Authorization', `Bearer ${token}`);
+                    } else {
+                        config.headers.Authorization = `Bearer ${token}`;
+                    }
                 }
             } catch(e) {}
         }
@@ -61,8 +65,9 @@ export const login = async (username, password) => {
 };
 
 // ─── Theme helpers ─────────────────────────────────────────────────────────────
-export const fetchThemes = async () => {
-    const res = await api.get('/studio/themes');
+export const fetchThemes = async (branchId) => {
+    const params = branchId ? `?branchId=${branchId}` : '';
+    const res = await api.get(`/studio/themes${params}`);
     return res.data;
 };
 

@@ -24,10 +24,9 @@ export function CafeSnackManagement() {
         setLoading(true);
         try {
             const res = await api.get(selectedBranch ? `/studio/cafe-snacks?branchId=${selectedBranch.id}` : '/studio/cafe-snacks');
-            // If branch selected, maybe API still returns all? We should filter locally to be safe.
             const data = res.data || [];
             if (selectedBranch) {
-                setSnacks(data.filter(s => s.branch_id === selectedBranch.id || s.branchId === selectedBranch.id));
+                setSnacks(data.filter(s => s.branchId === selectedBranch.id));
             } else {
                 setSnacks(data);
             }
@@ -46,7 +45,6 @@ export function CafeSnackManagement() {
             const payload = {
                 ...formData,
                 branchId: selectedBranch ? selectedBranch.id : formData.branchId,
-                branch_id: selectedBranch ? selectedBranch.id : formData.branchId // some backends prefer snake_case
             };
 
             if (editingId) {
@@ -72,7 +70,7 @@ export function CafeSnackManagement() {
             label: snack.label, 
             price: snack.price, 
             active: snack.active !== false,
-            branchId: snack.branchId || snack.branch_id || null
+            branchId: snack.branchId || null
         });
         setShowForm(true);
     };
@@ -92,12 +90,12 @@ export function CafeSnackManagement() {
     };
 
     const handleDuplicate = (snack) => {
-        openDupModal([snack], `Item: ${snack.label}`, snack.branchId || snack.branch_id || (selectedBranch?.id ?? null));
+        openDupModal([snack], `Item: ${snack.label}`, snack.branchId || (selectedBranch?.id ?? null));
     };
 
     const handleDuplicateAll = () => {
         if (filtered.length === 0) return;
-        const srcId = selectedBranch?.id ?? (filtered[0]?.branch_id ?? null);
+        const srcId = selectedBranch?.id ?? (filtered[0]?.branchId ?? null);
         openDupModal(filtered, `${filtered.length} item${filtered.length !== 1 ? 's' : ''}`, srcId);
     };
 
@@ -108,8 +106,7 @@ export function CafeSnackManagement() {
                     label: `${snack.label} (Copy)`,
                     price: snack.price,
                     active: snack.active,
-                    branchId,
-                    branch_id: branchId
+                    branchId
                 };
                 await api.post('/studio/cafe-snacks', payload);
             }
@@ -224,7 +221,7 @@ export function CafeSnackManagement() {
                                     <TableCell>Rp {Number(snack.price).toLocaleString('id-ID')}</TableCell>
                                     {!selectedBranch && (
                                         <TableCell>
-                                            {snack.branchId || snack.branch_id ? getBranchName(snack.branchId || snack.branch_id) : 'Global'}
+                                            {snack.branchId ? getBranchName(snack.branchId) : 'Global'}
                                         </TableCell>
                                     )}
                                     <TableCell>
