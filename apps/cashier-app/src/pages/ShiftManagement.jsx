@@ -14,6 +14,7 @@ export default function ShiftManagement() {
 
     const [activeTab, setActiveTab] = useState('current'); // 'current', 'history'
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const [startingCash, setStartingCash] = useState('');
     const [endingCash, setEndingCash] = useState('');
     const [expenseAmount, setExpenseAmount] = useState('');
@@ -27,38 +28,58 @@ export default function ShiftManagement() {
 
     const handleStart = async (e) => {
         e.preventDefault();
+        setError('');
         setLoading(true);
         const res = await startShift(parseFloat(startingCash));
         setLoading(false);
-        if (res.success) setStartingCash('');
+        if (res?.success) setStartingCash('');
+        else if (res?.error) setError(res.error);
     };
 
     const handleEnd = async (e) => {
         e.preventDefault();
         if (!window.confirm('Are you sure you want to end this shift?')) return;
+        setError('');
         setLoading(true);
         const res = await endShift(parseFloat(endingCash));
         setLoading(false);
-        if (res.success) {
+        if (res?.success) {
             setEndingCash('');
             refreshShiftHistory();
+        } else if (res?.error) {
+            setError(res.error);
         }
     };
 
     const handleAddExpense = async (e) => {
         e.preventDefault();
+        setError('');
         setLoading(true);
         const res = await addExpense(parseFloat(expenseAmount), expenseDesc);
         setLoading(false);
-        if (res.success) {
+        if (res?.success) {
             setExpenseAmount('');
             setExpenseDesc('');
             setShowExpenseForm(false);
+        } else if (res?.error) {
+            setError(res.error);
         }
     };
 
     return (
         <div style={{ paddingBottom: 40 }} className="animate-fadeIn">
+            {/* Error Banner */}
+            {error && (
+                <div style={{
+                    marginBottom: 16, padding: '12px 16px', borderRadius: 12,
+                    background: '#FFF1F0', border: '1px solid #FFCCC7', color: '#CF1322',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    fontSize: 14, fontWeight: 600
+                }}>
+                    <span>⚠️ {error}</span>
+                    <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CF1322', fontWeight: 800, fontSize: 16 }}>×</button>
+                </div>
+            )}
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                 <div>

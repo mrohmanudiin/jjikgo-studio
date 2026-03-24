@@ -82,13 +82,30 @@ h1, h2, h3, h4, .font-display, .queue-num-badge, .session-queue-number, .session
 /* Layout */
 .app-layout {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 360px;
   grid-template-rows: 64px 1fr;
   height: 100vh;
-  gap: 24px;
-  padding: 0 24px 24px;
+  gap: 16px;
+  padding: 0 16px 16px;
   max-width: 1440px;
   margin: 0 auto;
+}
+
+@media (max-width: 1100px) {
+  .app-layout {
+    grid-template-columns: 1fr 300px;
+    gap: 12px;
+    padding: 0 12px 12px;
+  }
+}
+
+@media (max-width: 820px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: 64px auto 1fr;
+    height: auto;
+    min-height: 100vh;
+  }
 }
 
 /* Topbar */
@@ -101,23 +118,26 @@ h1, h2, h3, h4, .font-display, .queue-num-badge, .session-queue-number, .session
 .topbar-station-name { font-size: 13px; font-weight: 600; color: var(--text-h); letter-spacing: 0.02em; }
 .topbar-spacer { flex: 1; }
 .topbar-time { font-size: 14px; font-weight: 600; color: var(--text-s); font-variant-numeric: tabular-nums; }
-.topbar-btn {
-  background: transparent; border: 1px solid var(--glass-stroke); color: var(--text-s);
-  padding: 6px 12px; border-radius: var(--radius-md); cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
-}
+.topbar-btn { background: transparent; border: 1px solid var(--glass-stroke); color: var(--text-s); padding: 6px 12px; border-radius: var(--radius-md); cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
 .topbar-btn:hover { background: var(--glass-stroke); color: var(--text-h); }
+
+@media (max-width: 820px) {
+  .topbar { flex-wrap: wrap; gap: 10px; margin-top: 12px; padding-bottom: 10px; }
+  .topbar-spacer { display: none; }
+  .panel-card { padding: 16px; }
+}
 
 /* Left Queue */
 .queue-panel { display: flex; flex-direction: column; gap: 24px; overflow-y: auto; padding-right: 8px; }
 
 /* Stats */
-.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .stat-card {
-  background: var(--bg-surface); border: 1px solid var(--glass-stroke); border-radius: var(--radius-lg); padding: 20px;
+  background: var(--bg-surface); border: 1px solid var(--glass-stroke); border-radius: var(--radius-lg); padding: 14px 16px;
   display: flex; flex-direction: column; gap: 4px;
 }
-.stat-value { font-size: 32px; font-weight: 700; color: var(--text-h); }
-.stat-label { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-s); }
+.stat-value { font-size: 24px; font-weight: 700; color: var(--text-h); }
+.stat-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-s); }
 
 /* Panel Card */
 .panel-card { background: var(--bg-surface); border: 1px solid var(--glass-stroke); border-radius: var(--radius-xl); padding: 24px; display: flex; flex-direction: column; }
@@ -162,9 +182,9 @@ h1, h2, h3, h4, .font-display, .queue-num-badge, .session-queue-number, .session
 
 /* Session Panel */
 .session-panel { display: flex; flex-direction: column; gap: 24px; height: 100%; overflow-y: auto; }
-.session-customer-card { background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-xl); padding: 32px; position: relative; overflow: hidden; }
-.session-queue-number { font-size: 48px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-h); line-height: 1; margin-bottom: 16px; min-height: 48px; }
-.session-customer-name { font-size: 20px; font-weight: 500; color: var(--text-p); margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.1em; }
+.session-customer-card { background: var(--bg-surface); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-xl); padding: 20px 24px; position: relative; overflow: hidden; }
+.session-queue-number { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; color: var(--text-h); line-height: 1; margin-bottom: 10px; min-height: 36px; }
+.session-customer-name { font-size: 16px; font-weight: 500; color: var(--text-p); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.08em; }
 .session-tags-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .session-tag { background: rgba(255,255,255,0.02); border: 1px solid var(--glass-stroke); border-radius: var(--radius-md); padding: 12px; }
 .session-tag-label { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-m); margin-bottom: 4px; display: block; }

@@ -608,11 +608,12 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
         setBusy('call');
         setConfirmDialog(null);
         try {
-            await callNext(theme.id);
+            await callNext(parseInt(theme.id, 10));
             await refresh();
             showToast('✅ Next customer called!');
-        } catch {
-            showToast('❌ Failed to call next customer');
+        } catch (err) {
+            const msg = err?.response?.data?.message || err?.response?.data?.error || 'Failed to call next customer';
+            showToast(`❌ ${msg}`);
         } finally {
             setBusy(null);
         }
@@ -626,8 +627,9 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
             await skipQueue(qId);
             await refresh();
             showToast('⏭️ Customer skipped');
-        } catch {
-            showToast('Failed to skip customer');
+        } catch (err) {
+            const msg = err?.response?.data?.error || 'Failed to skip customer';
+            showToast(`❌ ${msg}`);
         } finally {
             setBusy(null);
         }

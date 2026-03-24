@@ -160,8 +160,8 @@ export function FinanceDashboard() {
             const currentArr = Array.isArray(currentRes.data) ? currentRes.data : [];
             const prevArr = Array.isArray(prevRes.data) ? prevRes.data : [];
 
-            setTransactions(currentArr.filter(t => t.status !== 'cancelled'));
-            setComparisonTransactions(prevArr.filter(t => t.status !== 'cancelled'));
+            setTransactions(currentArr.filter(t => t && t.status !== 'cancelled'));
+            setComparisonTransactions(prevArr.filter(t => t && t.status !== 'cancelled'));
         } catch (err) {
             console.error('Failed to fetch finance data', err);
             setTransactions([]);
@@ -346,13 +346,13 @@ export function FinanceDashboard() {
 
     const exportToCSV = () => {
         const headers = ["Date", "Invoice", "Customer", "Branch", "Method", "Total"];
-        const rows = transactions.map(t => [
-            format(parseISO(t.created_at), 'yyyy-MM-dd HH:mm'),
-            t.invoice_number,
-            t.customer_name,
-            t.branch?.name || t.branch_id,
-            t.payment_method,
-            t.total
+        const rows = transactions.filter(t => t && t.created_at).map(t => [
+            (() => { try { return format(parseISO(t.created_at), 'yyyy-MM-dd HH:mm'); } catch(e) { return '--'; } })(),
+            t.invoice_number || '--',
+            t.customer_name || 'Walk-in',
+            t.branch?.name || t.branch_id || '--',
+            t.payment_method || '--',
+            t.total || 0
         ]);
         
         const csvContent = "data:text/csv;charset=utf-8," 

@@ -226,7 +226,7 @@ export const useStore = create(
 
             endShift: async (endingCash) => {
                 const { currentShift } = get();
-                if (!currentShift) return;
+                if (!currentShift) return { success: false, error: 'No active shift to end' };
                 try {
                     const { api } = await import('../utils/api');
                     await api.post(`/shifts/${currentShift.id}/end`, {
@@ -242,7 +242,7 @@ export const useStore = create(
 
             addExpense: async (amount, description) => {
                 const { currentShift } = get();
-                if (!currentShift) return;
+                if (!currentShift) return { success: false, error: 'No active shift. Please start a shift first.' };
                 try {
                     const { api } = await import('../utils/api');
                     await api.post('/shifts/expenses', {

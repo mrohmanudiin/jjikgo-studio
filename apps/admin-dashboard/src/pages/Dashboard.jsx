@@ -188,7 +188,7 @@ export function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [selectedBranch, chartRange, compareMode, topPackagesRange, yearStartStr, monthStartStr, from30, todayStr]);
+  }, [selectedBranch, chartRange, compareMode, topPackagesRange]);
 
   useEffect(() => {
     fetchData();
