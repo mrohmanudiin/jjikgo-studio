@@ -1,14 +1,6 @@
 import axios from 'axios';
 
 export let API_URL = import.meta.env.VITE_API_URL || '';
-
-if (!API_URL && import.meta.env.PROD) {
-  const currentHost = window.location.hostname;
-  if (currentHost.includes('railway') || currentHost.includes('vercel')) {
-    API_URL = 'https://backend-production-d3fc.up.railway.app';
-  }
-}
-
 API_URL = API_URL.replace(/\/$/, '') || 'http://localhost:3000';
 console.log('📡 [Jjikgo] Connecting to API:', API_URL);
 

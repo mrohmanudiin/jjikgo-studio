@@ -1,12 +1,9 @@
 require('dotenv').config();
 
-// Validate required env vars
-// Note: 'ATABASE_URL' is included because the logs show a typo in the environment variable name
-const dbUrl = process.env.DATABASE_URL || process.env.DB_URL || process.env.ATABASE_URL;
+const dbUrl = process.env.DATABASE_URL || process.env.DB_URL;
 
 if (!dbUrl) {
-  console.warn('⚠️  DATABASE_URL (or DB_URL) is missing! The app will likely fail on database queries.');
-  console.log('Available Env Keys:', Object.keys(process.env).filter(k => k.toLowerCase().includes('database') || k.toLowerCase().includes('db') || k.includes('URL')));
+  console.warn('⚠️  DATABASE_URL is missing! The app will fail on database queries.');
 }
 
 const env = {

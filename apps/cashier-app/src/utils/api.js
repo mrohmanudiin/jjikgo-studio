@@ -2,14 +2,6 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 
 let API_URL = import.meta.env.VITE_API_URL || '';
-
-if (!API_URL && import.meta.env.PROD) {
-  const currentHost = window.location.hostname;
-  if (currentHost.includes('railway') || currentHost.includes('vercel')) {
-    API_URL = 'https://backend-production-d3fc.up.railway.app';
-  }
-}
-
 API_URL = API_URL.replace(/\/$/, '') || 'http://localhost:3000';
 console.log('📡 [Jjikgo] Connecting to API:', API_URL);
 
@@ -59,6 +51,7 @@ api.interceptors.response.use(
 );
 
 export const socket = io(API_URL, {
+    transports: ['polling'],
     withCredentials: true,
 });
 

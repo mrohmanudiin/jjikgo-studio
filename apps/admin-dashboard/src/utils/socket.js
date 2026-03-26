@@ -13,6 +13,7 @@ const getAuthToken = () => {
 };
 
 export const socket = io(API_URL, {
+    transports: ['polling'],
     withCredentials: true,
     auth: {
         token: getAuthToken(),
