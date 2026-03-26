@@ -4,28 +4,13 @@
     "engines": {
         "node": ">=18.0.0"
     },
-    "workspaces": [
-        "apps/*",
-        "backend"
-    ],
     "scripts": {
-        "dev:cashier": "npm run dev --workspace=apps/cashier-app",
-        "dev:staff": "npm run dev --workspace=apps/staff-app",
-        "dev:admin": "npm run dev --workspace=apps/admin-dashboard",
-        "dev:backend": "npm run dev --workspace=backend",
-        "build:cashier": "npm run build --workspace=apps/cashier-app",
-        "build:staff": "npm run build --workspace=apps/staff-app",
-        "build:admin": "npm run build --workspace=apps/admin-dashboard",
-        "build:backend": "cd backend && npm install",
-        "start:cashier": "serve -s apps/cashier-app/dist -p ${PORT:-3000}",
-        "start:staff": "serve -s apps/staff-app/dist -p ${PORT:-3000}",
-        "start:admin": "serve -s apps/admin-dashboard/dist -p ${PORT:-3000}",
-        "start:backend": "npm run start --workspace=backend",
-        "start": "npm run start:backend",
-        "db:setup": "npm run db:setup --workspace=backend",
-        "build": "npm run build:admin"
-    },
-    "dependencies": {
-        "serve": "^14.2.6"
+        "dev:cashier": "npm run dev --prefix apps/cashier-app",
+        "dev:staff": "npm run dev --prefix apps/staff-app",
+        "dev:admin": "npm run dev --prefix apps/admin-dashboard",
+        "dev:backend": "npm run dev --prefix backend",
+        "build:cashier": "npm run build --prefix apps/cashier-app",
+        "build:staff": "npm run build --prefix apps/staff-app",
+        "build:admin": "npm run build --prefix apps/admin-dashboard"
     }
 }
