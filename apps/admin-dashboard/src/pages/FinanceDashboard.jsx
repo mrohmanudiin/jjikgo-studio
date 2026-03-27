@@ -21,6 +21,9 @@ import api from '../utils/api';
 import { useBranch } from '../contexts/BranchContext';
 import { format, subDays, startOfWeek, startOfMonth, parseISO, getHours } from 'date-fns';
 
+// Simple toast fallback (no external dependency needed)
+const toast = { success: (msg) => console.log('✅', msg), error: (msg) => console.error('❌', msg) };
+
 function getDateRange(range, customFrom, customTo) {
     const now = new Date();
     switch (range) {
@@ -284,7 +287,8 @@ export function FinanceDashboard() {
         packageRevenueData,
         cafeSnackRevenueData,
         addonRevenueData,
-        recentLargeTransactions
+        recentLargeTransactions,
+        bestSellers
     } = useMemo(() => {
         const { revenue, count, avg, methods, items, peakMap } = metrics;
         
