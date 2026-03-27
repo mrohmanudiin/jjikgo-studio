@@ -8,6 +8,7 @@ router.get('/', authenticate, requireRole(['admin', 'cashier', 'staff']), branch
 
 // Queue actions — staff only (branch scoped)
 router.post('/call-next', authenticate, requireRole(['admin', 'cashier', 'staff']), branchScope, queueController.callNextQueue);
+router.post('/call-specific', authenticate, requireRole(['admin', 'cashier', 'staff']), branchScope, queueController.callSpecificQueue);
 router.post('/start', authenticate, requireRole(['admin', 'cashier', 'staff']), branchScope, queueController.startSession);
 router.post('/finish', authenticate, requireRole(['admin', 'cashier', 'staff']), branchScope, queueController.finishSession);
 router.post('/send-to-print', authenticate, requireRole(['admin', 'cashier', 'staff']), branchScope, queueController.sendToPrint);

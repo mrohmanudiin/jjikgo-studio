@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { callNext, startSession, sendToPrint, skipQueue, updateNotes } from '../utils/api';
+import { callNext, startSession, sendToPrint, skipQueue, updateNotes, callSpecific } from '../utils/api';
 import { formatWaitingTime } from '../utils/format';
 
 // ── Normalize backend queue shape ──────────────────────────────────────────────
@@ -247,6 +247,16 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
         setDialog({ type: 'call', title: 'Call Next Customer', msg: `Call the next customer for "${theme.name}"?`, label: '📣 Call Now' });
     };
 
+    const handleCallSpecific = (q) => {
+        if (activeQueue || busy) return;
+        setDialog({
+            type: 'callSpecific', id: q.id,
+            title: `Call ${theme?.prefix || 'T'}${String(q.queue_number).padStart(2, '0')}`,
+            msg: `Call "${q.transaction.customer_name}" directly? They will be moved to the front.`,
+            label: '📣 Call This Customer',
+        });
+    };
+
     const handleSkip = (id) => {
         setDialog({ type: 'skip', id, title: 'Skip Customer', msg: 'Move this customer to the end of the queue? They can still be called again.', label: '⏭ Skip to End', danger: false });
     };
@@ -278,6 +288,11 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
         if (type === 'call') {
             setBusy('call');
             try { await callNext(parseInt(theme.id, 10)); await refresh(); showToast('✅ Customer called!'); }
+            catch (e) { showToast(`❌ ${e?.response?.data?.error || 'Failed to call'}`); }
+            finally { setBusy(null); }
+        } else if (type === 'callSpecific') {
+            setBusy('call');
+            try { await callSpecific(id); await refresh(); showToast('✅ Customer called!'); }
             catch (e) { showToast(`❌ ${e?.response?.data?.error || 'Failed to call'}`); }
             finally { setBusy(null); }
         } else if (type === 'skip') {
@@ -366,8 +381,15 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                             ) : waitingQueues.map((q, i) => {
                                 const prefix = theme?.prefix || 'T';
                                 const qNum = `${prefix}${String(q.queue_number).padStart(2, '0')}`;
+                                const canCallThis = !activeQueue && !busy;
                                 return (
-                                    <div key={q.id} className="queue-item fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
+                                    <div
+                                        key={q.id}
+                                        className="queue-item fade-up"
+                                        style={{ animationDelay: `${i * 0.05}s`, cursor: canCallThis ? 'pointer' : 'default' }}
+                                        onClick={() => canCallThis && handleCallSpecific(q)}
+                                        title={canCallThis ? `Call ${qNum} directly` : 'Complete current session first'}
+                                    >
                                         <div className="queue-num">{qNum}</div>
                                         <div className="queue-info">
                                             <div className="queue-name">{q.transaction.customer_name}</div>
@@ -376,7 +398,12 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
                                                 <span className="queue-meta-item">📦 {q.transaction.package_name}</span>
                                             </div>
                                         </div>
-                                        <div className="queue-wait">{formatWaitingTime(q.created_at)}</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                                            <div className="queue-wait">{formatWaitingTime(q.created_at)}</div>
+                                            {canCallThis && (
+                                                <div className="queue-call-hint">📣</div>
+                                            )}
+                                        </div>
                                     </div>
                                 );
                             })}

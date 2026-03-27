@@ -43,6 +43,47 @@ exports.getQueue = async (req, res) => {
 };
 
 /**
+ * POST /api/queue/call-specific
+ * Call a specific queue entry by ID (staff picks from list)
+ */
+exports.callSpecificQueue = async (req, res) => {
+  try {
+    const { queue_id } = req.body;
+
+    const target = await db.query.queues.findFirst({
+      where: and(eq(queues.id, parseInt(queue_id)), eq(queues.status, 'waiting')),
+      with: { transaction: true, theme: true },
+    });
+
+    if (!target) {
+      return res.status(404).json({ error: 'Queue not found or not in waiting status' });
+    }
+
+    const [updatedQueue] = await db.update(queues)
+      .set({ status: 'called', updatedAt: new Date() })
+      .where(eq(queues.id, target.id))
+      .returning();
+
+    await db.update(transactions)
+      .set({ status: 'called' })
+      .where(eq(transactions.id, updatedQueue.transactionId));
+
+    const branchId = target.transaction?.branchId;
+    const io = req.app.get('io');
+    emitQueueUpdate(io, branchId, 'queue_called', {
+      ...updatedQueue,
+      theme: target.theme,
+      transaction: target.transaction,
+    });
+
+    res.json(updatedQueue);
+  } catch (error) {
+    console.error('callSpecificQueue error:', error);
+    res.status(500).json({ error: 'Failed to call specific queue' });
+  }
+};
+
+/**
  * POST /api/queue/call-next
  * Access: STAFF
  */

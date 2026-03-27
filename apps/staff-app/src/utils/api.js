@@ -75,6 +75,11 @@ export const callNext = async (themeId) => {
     return res.data;
 };
 
+export const callSpecific = async (queueId) => {
+    const res = await api.post('/queue/call-specific', { queue_id: queueId });
+    return res.data;
+};
+
 export const startSession = async (queueId, boothId) => {
     const res = await api.post('/queue/start', { queue_id: queueId, booth_id: boothId });
     return res.data;
