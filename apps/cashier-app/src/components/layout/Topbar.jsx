@@ -19,7 +19,11 @@ export default function Topbar() {
     const navigate = useNavigate();
     const user = useStore((s) => s.user);
     const branch = useStore((s) => s.branch);
-    const activeQ = useStore((s) => s.getActiveQueueCount());
+    const transactions = useStore((s) => s.transactions);
+    const activeQ = Array.isArray(transactions) ? transactions.filter(t => {
+        const s = (t.order_status || t.status || '').toLowerCase();
+        return s === 'waiting' || s === 'called';
+    }).length : 0;
 
     useEffect(() => {
         const id = setInterval(() => setTime(new Date()), 1000);
