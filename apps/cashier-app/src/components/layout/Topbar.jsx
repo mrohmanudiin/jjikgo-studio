@@ -3,14 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { formatTime, formatDate } from '../../utils/format';
 import { Bell, Plus, DollarSign } from 'lucide-react';
+import ShiftModal from '../shift/ShiftModal';
 
 const PAGE_TITLES = {
     '/dashboard': 'Dashboard',
     '/transaction': 'New Transaction',
     '/queue': 'Production Queue',
 };
-
-import ShiftModal from '../shift/ShiftModal';
 
 export default function Topbar() {
     const [time, setTime] = useState(new Date());
@@ -76,10 +75,7 @@ export default function Topbar() {
 
                 {/* Queue badge */}
                 <div
-                    style={{
-                        position: 'relative',
-                        cursor: 'pointer',
-                    }}
+                    style={{ position: 'relative', cursor: 'pointer' }}
                     onClick={() => navigate('/queue')}
                     title="View Queue"
                 >
