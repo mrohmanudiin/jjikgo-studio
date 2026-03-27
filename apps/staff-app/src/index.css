@@ -118,10 +118,10 @@ body { min-height: 100vh; }
 .queue-item:last-child { border-bottom: none; }
 .queue-item:hover { background: rgba(255,255,255,0.02); }
 .queue-num {
-  width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+  width: 52px; min-width: 52px; height: 36px; border-radius: 8px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 800; background: var(--surface2);
-  color: var(--text); border: 1px solid var(--border);
+  font-size: 11px; font-weight: 800; background: var(--surface2);
+  color: var(--text); border: 1px solid var(--border); letter-spacing: 0.02em;
 }
 .queue-info { flex: 1; min-width: 0; }
 .queue-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

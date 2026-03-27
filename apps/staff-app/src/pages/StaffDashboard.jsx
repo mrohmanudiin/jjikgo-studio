@@ -175,7 +175,7 @@ function SessionPanel({ queue, theme, onAction, onSkip, onNote, busy }) {
                                 {busy === 'start' ? <><span className="spinner dark" /> Starting…</> : <>📸 Begin Session</>}
                             </button>
                             <button className="btn-secondary" disabled={!!busy} onClick={() => onSkip(q.id)}>
-                                ⏭ No-show — Skip customer
+                                ⏭ Skip — move to end of queue
                             </button>
                         </>
                     )}
@@ -248,7 +248,7 @@ export default function StaffDashboard({ theme, queueData, loading, refresh, onC
     };
 
     const handleSkip = (id) => {
-        setDialog({ type: 'skip', id, title: 'Skip Customer', msg: 'Mark as no-show and advance the queue?', label: 'Skip', danger: true });
+        setDialog({ type: 'skip', id, title: 'Skip Customer', msg: 'Move this customer to the end of the queue? They can still be called again.', label: '⏭ Skip to End', danger: false });
     };
 
     const handleAction = async (action) => {

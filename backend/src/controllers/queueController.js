@@ -263,20 +263,24 @@ exports.trackQueue = async (req, res) => {
 /**
  * POST /api/queue/skip
  * Access: STAFF
+ * Moves the called customer back to 'waiting' at the END of the queue
+ * by updating their createdAt to now — so they appear last when sorted by createdAt asc.
  */
 exports.skipQueue = async (req, res) => {
   try {
     const { queue_id } = req.body;
 
-    // Skip moves it to 'waiting' with an updated timestamp to put it at the end of the queue
-    // OR just marks as 'cancelled'. Let's do 'cancelled' for now to match "no-show" requirement.
+    const now = new Date();
+
+    // Set status back to 'waiting' and bump createdAt to now so they go to end of queue
     const [updatedQueue] = await db.update(queues)
-      .set({ status: 'cancelled', updatedAt: new Date() })
+      .set({ status: 'waiting', updatedAt: now, createdAt: now })
       .where(eq(queues.id, parseInt(queue_id)))
       .returning();
 
+    // Also reset transaction status to waiting
     await db.update(transactions)
-      .set({ status: 'cancelled' })
+      .set({ status: 'waiting' })
       .where(eq(transactions.id, updatedQueue.transactionId));
 
     const tx = await db.query.transactions.findFirst({
