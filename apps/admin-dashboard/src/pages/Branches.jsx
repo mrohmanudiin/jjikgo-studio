@@ -7,6 +7,8 @@ const EMPTY_FORM = { name: '', location: '' };
 
 export function Branches() {
   const { branches, refreshBranches } = useBranch();
+  // Filter out the synthetic 'ALL' entry — it's only for the filter dropdown
+  const realBranches = branches.filter(b => b.id !== 'ALL');
   const [stats, setStats] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editBranch, setEditBranch] = useState(null);
@@ -28,8 +30,13 @@ export function Branches() {
   };
 
   useEffect(() => {
-    if (branches.length > 0) {
-      fetchStats(branches);
+    // Always refresh on mount to ensure we have latest data
+    refreshBranches();
+  }, []);
+
+  useEffect(() => {
+    if (realBranches.length > 0) {
+      fetchStats(realBranches);
     }
   }, [branches]);
 
@@ -102,7 +109,7 @@ export function Branches() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {branches.map((branch) => {
+        {realBranches.map((branch) => {
           const branchStats = stats[branch.id];
           return (
             <div key={branch.id} className="bg-card rounded-3xl border p-6 hover:shadow-xl transition-all group">
@@ -177,7 +184,7 @@ export function Branches() {
           );
         })}
 
-        {branches.length === 0 && (
+        {realBranches.length === 0 && (
           <div className="col-span-3 text-center py-16 text-muted-foreground">
             <Building2 size={48} className="mx-auto mb-4 opacity-20" />
             <p className="font-medium">No branches yet</p>
