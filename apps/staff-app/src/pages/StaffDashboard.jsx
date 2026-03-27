@@ -461,47 +461,78 @@ function SessionPanel({ activeQueue, theme, onAction, onSkip, onNote, busy, wait
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {status === 'called' && (
-                        <>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {/* Customer arrived banner */}
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: 10,
+                                padding: '10px 14px', borderRadius: 10,
+                                background: 'rgba(0,200,83,0.08)',
+                                border: '1px solid rgba(0,200,83,0.2)',
+                                color: '#00C853', fontSize: 12, fontWeight: 600,
+                            }}>
+                                <span style={{ fontSize: 16 }}>📣</span>
+                                Customer has been called — waiting at booth
+                            </div>
+
+                            {/* Primary action */}
                             <button
                                 className="action-btn action-btn-start"
                                 disabled={!!busy}
                                 onClick={() => onAction('start')}
+                                style={{ padding: '14px 20px', fontSize: 14, borderRadius: 12 }}
                             >
-                                {busy === 'start' ? <div className="spinner" style={{ borderTopColor: '#000' }} /> : <Icons.Camera />}
-                                Begin Session
+                                {busy === 'start'
+                                    ? <><div className="spinner" style={{ borderTopColor: '#000' }} /> Starting…</>
+                                    : <><Icons.Camera /> Begin Session</>
+                                }
                             </button>
+
+                            {/* Secondary skip */}
                             <button
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: 8,
-                                    padding: '12px 16px', borderRadius: 12,
-                                    background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    color: 'var(--text-s)', cursor: 'pointer',
-                                    fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
-                                    transition: 'all 0.15s ease',
-                                }}
                                 disabled={!!busy}
                                 onClick={() => onSkip(q.id)}
-                                title="Skip this customer (no-show)"
+                                style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                                    padding: '10px 16px', borderRadius: 10,
+                                    background: 'transparent',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    color: 'var(--text-m)', cursor: 'pointer',
+                                    fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                                    transition: 'all 0.15s ease',
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,68,68,0.3)'; e.currentTarget.style.color = '#FF4444'; }}
+                                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'var(--text-m)'; }}
                             >
                                 <Icons.SkipForward />
-                                Skip (No-show)
+                                No-show — Skip
                             </button>
-                            <p className="action-hint">Customer has arrived at the booth</p>
-                        </>
+                        </div>
                     )}
                     {status === 'in_session' && (
-                        <>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: 10,
+                                padding: '10px 14px', borderRadius: 10,
+                                background: 'rgba(16,185,129,0.08)',
+                                border: '1px solid rgba(16,185,129,0.2)',
+                                color: '#10B981', fontSize: 12, fontWeight: 600,
+                            }}>
+                                <span style={{ fontSize: 16 }}>📸</span>
+                                Session in progress
+                            </div>
                             <button
                                 className="action-btn action-btn-print"
                                 disabled={!!busy}
                                 onClick={() => onAction('print')}
+                                style={{ padding: '14px 20px', fontSize: 14, borderRadius: 12 }}
                             >
-                                {busy === 'print' ? <div className="spinner" /> : <Icons.Printer />}
-                                Send to Print
+                                {busy === 'print'
+                                    ? <><div className="spinner" /> Sending…</>
+                                    : <><Icons.Printer /> Send to Print</>
+                                }
                             </button>
-                            <p className="action-hint">Session complete, transfer to print station</p>
-                        </>
+                            <p className="action-hint">Session complete — transfer to print station</p>
+                        </div>
                     )}
                     {status === 'print_requested' && (
                         <div style={{
