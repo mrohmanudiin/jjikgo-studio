@@ -115,6 +115,8 @@ export const useStore = create(
                             customer_name: t.customer_name || t.customerName,
                             people_count: t.people_count || t.peopleCount || 1,
                             theme_id: t.theme_id || t.themeId,
+                            // Normalize total
+                            total: t.total || t.total_price || t.totalPrice || 0,
                             // Queue id for status updates (use queue id if available)
                             queue_id: t.queue?.id || t.queues?.[0]?.id || t.queue_id || t.id,
                         };

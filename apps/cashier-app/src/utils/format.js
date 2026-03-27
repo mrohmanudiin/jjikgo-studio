@@ -8,7 +8,9 @@ export const formatDate = (date = new Date()) =>
     date.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
 export const formatDateTime = (isoString) => {
+    if (!isoString) return '--:--';
     const d = new Date(isoString);
+    if (isNaN(d.getTime())) return '--:--';
     return d.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 };
 

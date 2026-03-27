@@ -399,16 +399,19 @@ export default function ProductionQueue() {
 
                                         {tx.cafe_snacks && tx.cafe_snacks.length > 0 && (
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-                                                {tx.cafe_snacks.map((s, si) => (
-                                                    <span key={si} style={{
-                                                        fontSize: 12, fontWeight: 700,
-                                                        background: '#111', color: '#FFF',
-                                                        padding: '6px 12px', borderRadius: 8,
-                                                        display: 'inline-flex', alignItems: 'center', gap: 6
-                                                    }}>
-                                                        <Coffee size={13} color="#FFF" /> {s}
-                                                    </span>
-                                                ))}
+                                                {tx.cafe_snacks.map((s, si) => {
+                                                    const label = typeof s === 'string' ? s : (s?.label || s?.name || JSON.stringify(s));
+                                                    return (
+                                                        <span key={si} style={{
+                                                            fontSize: 12, fontWeight: 700,
+                                                            background: '#111', color: '#FFF',
+                                                            padding: '6px 12px', borderRadius: 8,
+                                                            display: 'inline-flex', alignItems: 'center', gap: 6
+                                                        }}>
+                                                            <Coffee size={13} color="#FFF" /> {label}
+                                                        </span>
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -421,7 +424,7 @@ export default function ProductionQueue() {
                                     }}>
                                         <div>
                                             <span style={{ fontSize: 11, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, display: 'block', marginBottom: 2 }}>Total</span>
-                                            <div style={{ fontSize: 20, fontWeight: 900, color: '#111', letterSpacing: '-0.02em' }}>{formatCurrency(tx.total)}</div>
+                                            <div style={{ fontSize: 20, fontWeight: 900, color: '#111', letterSpacing: '-0.02em' }}>{formatCurrency(tx.total || tx.total_price || tx.totalPrice || 0)}</div>
                                         </div>
                                         <StatusChanger currentStatus={tx.order_status} orderId={tx.id || tx.order_id} onChange={updateOrderStatus} />
                                     </div>
