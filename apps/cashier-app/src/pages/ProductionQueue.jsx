@@ -20,6 +20,7 @@ export default function ProductionQueue() {
     const confirmPrint = useStore((s) => s.confirmPrint);
     const getPrintRequests = useStore((s) => s.getPrintRequests);
     const themes = useStore((s) => s.themes);
+    const refreshTransactions = useStore((s) => s.refreshTransactions);
 
     const printRequests = getPrintRequests();
 
@@ -27,13 +28,11 @@ export default function ProductionQueue() {
     const [themeFilter, setThemeFilter] = useState('ALL');
     const [confirmingPrint, setConfirmingPrint] = useState(null);
     const [loading, setLoading] = useState(true);
-    
-    const refreshTransactions = useStore((s) => s.refreshTransactions);
 
     React.useEffect(() => {
         setLoading(true);
         refreshTransactions().finally(() => setLoading(false));
-    }, [refreshTransactions]);
+    }, []);
 
     const handleConfirmPrint = async (id) => {
         setConfirmingPrint(id);
